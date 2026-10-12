@@ -56,4 +56,4 @@ Qingxin Luo, Yun Wei, Jialu Ma, Yuanyuan Yu, Fuzhong Xue. A Multicenter Multiple
 
 ***Development***
 
-This code is developed by Qingxin Luo, Yuanyuan Yu, and Fuzhong Xue. Please contact luoqingxin@mail.sdu.edu.cn for any questions.
+This code is developed by Qingxin Luo and Yuanyuan Yu. Please contact luoqingxin@mail.sdu.edu.cn for any questions.
