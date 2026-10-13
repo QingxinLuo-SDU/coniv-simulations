@@ -9,7 +9,7 @@ The workflow of the model, the simulation studies, and the empirical application
 
 ![Figure 1](figure1.png)
 
-In multicenter real-world data, centers often observe different variables, and unmeasured confounding can further bias the estimated treatment effect. MCM-CONIV uses measured baseline covariates as confounding instrumental variables (CON-IV variables). In each target center, the outcome associations of the selected CON-IV variables are compared with those in a shared reference population that has a fixed intervention level or randomized treatment; under partial transportability of these associations, each center identifies the same average treatment effect without measuring the remaining confounders. Single or multiple CON-IV variables, in a common set or in center-specific sets, give four strategies. The center estimates are combined by feasible generalized least squares using their full covariance, including the covariance induced by the shared reference.
+In multicenter real-world data, observed variables often differ across centers, and unmeasured confounding can further bias the estimated treatment effect. MCM-CONIV uses measured baseline covariates as confounding instrumental variables (CON-IV variables). In each target center, the outcome associations of the selected CON-IV variables are compared with those in a shared reference population with a fixed or randomized intervention; under partial transportability of these associations, the same average treatment effect is identified in every center without measuring the remaining confounders. Single or multiple CON-IV variables, in center-shared or center-specific sets, give four strategies. The center estimates are combined by feasible generalized least squares using their full covariance, including the covariance induced by the shared reference.
 
 ***Contents***
 
@@ -26,7 +26,7 @@ Each script is self-contained: it generates the data, selects the CON-IV variabl
 | `code-type2-hy/code` | Binary | Type I error (`type2_Ierror_*.R`) and power at latent-scale coefficients 0.4, 0.5, and 0.8 (`type2_power_*_4.R`, `*_5.R`, `*_8.R`), varying the number of centers (`*_NC*`) or the target center sample size (`*_Nall*`) | Appendix C.5 |
 | `code-type2-ses/code` | Binary | Sensitivity analyses with a common multiplier δ (`Sim_hetero_delta_*.R`) or center-specific multipliers τ (`Sim_hetero_tau_*.R`), and power at a latent-scale coefficient of 1 (`power_type2_*.R`) | Appendix C.5 |
 
-The directory names follow the original archive. In the scripts, `type1` denotes continuous outcomes and `type2` binary outcomes; `IV_single_same`, `IV_single_diff`, `IV_multi_same`, and `IV_multi_diff` are the single-variable common, single-variable center-specific, multiple-variable common, and multiple-variable center-specific strategies.
+The directory names follow the original archive. In the scripts, `type1` denotes continuous outcomes and `type2` binary outcomes; `IV_single_same`, `IV_single_diff`, `IV_multi_same`, and `IV_multi_diff` are the single-variable center-shared, single-variable center-specific, multiple-variable center-shared, and multiple-variable center-specific strategies.
 
 ***Requirements***
 
