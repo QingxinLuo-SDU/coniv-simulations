@@ -1,7 +1,7 @@
 
 ############################################################
-## 0. 设置每个 R 任务使用的 CPU 线程数
-## 必须放在脚本最前面
+## 0. set the number of CPU threads used by each R task
+## must be placed at the top of the script
 ############################################################
 
 n_threads <- 12
@@ -22,7 +22,7 @@ if (requireNamespace("RhpcBLASctl", quietly = TRUE)) {
 
 
 ############################################################
-## 1. 数据生成
+## 1. data generation
 ############################################################
 
 suppressPackageStartupMessages({
@@ -30,8 +30,8 @@ suppressPackageStartupMessages({
 })
 
 
-## 1. 基础工具函数###############
-## 二分类协变量生成函数：按分位数二分
+## 1. basic helper functions ###############
+## binary covariate generator: dichotomize at quantiles
 Fenlei <- function(data, Clv, na.rm = TRUE) {
   
   if (Clv <= 0 || Clv >= 1) {
@@ -45,7 +45,7 @@ Fenlei <- function(data, Clv, na.rm = TRUE) {
 }
 
 
-## 安全标准化
+## safe standardization
 safe_scale_vec <- function(x) {
   
   x <- as.numeric(x)
@@ -59,7 +59,7 @@ safe_scale_vec <- function(x) {
 }
 
 
-## 潜变量模型中根据目标发生率校准截距
+## calibrate the intercept to the target incidence in the latent-variable model
 
 calibrate_intercept <- function(eta,
                                 target_prev,
@@ -90,7 +90,7 @@ calibrate_intercept <- function(eta,
 }
 
 
-## 检查 beta 长度
+## check the length of beta
 check_beta_length <- function(beta, expected_length, beta_name) {
   
   if (length(beta) != expected_length) {
@@ -105,7 +105,7 @@ check_beta_length <- function(beta, expected_length, beta_name) {
 
 
 
-## 2. 固定 L 层网络结构#########
+## 2. fix the L-layer network structure #########
 
 
 generate_layer_network <- function(parent_indices,
@@ -186,7 +186,7 @@ generate_layer_data_fixed_network <- function(data_matrix,
 
 
 
-## 3. 生成 C/U/L 协变量块########
+## 3. generate C/U/L covariate blocks ########
 
 
 generate_covariate_block <- function(typeC,
@@ -208,7 +208,7 @@ generate_covariate_block <- function(typeC,
   total_vars <- n1 + n2 + n3
   
   ##########################################################
-  ## 3.1 生成基础 C/U
+  ## 3.1 generate baseline C/U
   ##########################################################
   
   Sigma_CU <- matrix(rep(r, NC * NC), NC, NC)
@@ -225,7 +225,7 @@ generate_covariate_block <- function(typeC,
   colnames(Cmat) <- paste0("NC", 1:NC)
   
   ##########################################################
-  ## 3.2 初始化 L 层数据
+  ## 3.2 initialize the L-layer data
   ##########################################################
   
   simulated_data <- matrix(0, nrow = N, ncol = total_vars)
@@ -236,7 +236,7 @@ generate_covariate_block <- function(typeC,
   )
   
   ##########################################################
-  ## 3.3 生成 L1
+  ## 3.3 generate L1
   ##########################################################
   
   Sigma_L <- matrix(r_L, nrow = n1, ncol = n1)
@@ -247,7 +247,7 @@ generate_covariate_block <- function(typeC,
   simulated_data[, 1:n1] <- l1_data
   
   ##########################################################
-  ## 3.4 固定网络生成 L2 和 L3
+  ## 3.4 generate L2 and L3 from the fixed network
   ##########################################################
   
   l1_indices <- 1:n1
@@ -287,7 +287,7 @@ generate_covariate_block <- function(typeC,
   df_L <- as.data.frame(simulated_data)
   
   ##########################################################
-  ## 3.5 合并 C/U/L
+  ## 3.5 combine C/U/L
   ##########################################################
   
   all_cov <- data.frame(Cmat, df_L)
@@ -336,7 +336,7 @@ generate_covariate_block <- function(typeC,
 
 
 
-## 4. 生成单个观察性中心数据######################
+## 4. generate data for a single observational center ######################
 
 
 Data_Generated <- function(type = 1,
@@ -358,7 +358,7 @@ Data_Generated <- function(type = 1,
                            Clv,
                            L_network = NULL,
                            
-                           ## 二分类潜变量模型参数
+                           ## binary latent-variable model parameters
                            target_px_ob = 0.50,
                            target_py0 = 0.20,
                            conf_strength_x = 0.50,
@@ -366,7 +366,7 @@ Data_Generated <- function(type = 1,
                            error_sd_x = 1,
                            error_sd_y = 1,
                            
-                           ## 是否保留潜变量，用于调试
+                           ## whether to keep the latent variables, for debugging
                            keep_latent = FALSE) {
   
   NC <- m + k
@@ -376,7 +376,7 @@ Data_Generated <- function(type = 1,
   check_beta_length(beta_CY, p_confound, "beta_CY")
   
   ##########################################################
-  ## 4.1 生成 C/U/L
+  ## 4.1 generate C/U/L
   ##########################################################
   
   cov_block <- generate_covariate_block(
@@ -402,13 +402,13 @@ Data_Generated <- function(type = 1,
   H <- as.matrix(all_confound)
   
   ##########################################################
-  ## 4.2 生成 X 和 Y
+  ## 4.2 generate X and Y
   ##########################################################
   
   if (type == 1) {
     
     ########################################################
-    ## 连续 X/Y：线性结构
+    ## continuous X/Y: linear structure
     ########################################################
     
     eta_x <- as.numeric(H %*% beta_CX)
@@ -440,49 +440,49 @@ Data_Generated <- function(type = 1,
   } else if (type == 2) {
     
     ########################################################
-    ## 二分类 X/Y：潜变量阈值模型
+    ## binary X/Y: latent-threshold model
     ########################################################
     
-    ## X 的潜在线性部分
+    ## latent linear part of X
     eta_x_raw <- as.numeric(H %*% beta_CX)
     eta_x <- safe_scale_vec(eta_x_raw)
     eta_x <- conf_strength_x * eta_x
     
-    ## 根据目标暴露率校准 alpha_x
+    ## calibrate alpha_x to the target exposure rate
     alpha_x <- calibrate_intercept(
       eta = eta_x,
       target_prev = target_px_ob,
       error_sd = error_sd_x
     )
     
-    ## 生成观察性暴露 X
+    ## generate the observational exposure X
     eps_x <- rnorm(N, mean = 0, sd = error_sd_x)
     x_star <- alpha_x + eta_x + eps_x
     x <- as.integer(x_star > 0)
     
-    ## Y 的潜在线性部分
+    ## latent linear part of Y
     eta_y_raw <- as.numeric(H %*% beta_CY)
     eta_y <- safe_scale_vec(eta_y_raw)
     eta_y <- conf_strength_y * eta_y
     
-    ## target_py0 表示 X=0 时的平均基线结局风险
+    ## target_py0 is the mean baseline outcome risk when X=0
     alpha_y <- calibrate_intercept(
       eta = eta_y,
       target_prev = target_py0,
       error_sd = error_sd_y
     )
     
-    ## 生成观察性结局 Y
+    ## generate the observational outcome Y
     eps_y <- rnorm(N, mean = 0, sd = error_sd_y)
     y_star <- alpha_y + eta_y + beta_XY * x + eps_y
     y <- as.integer(y_star > 0)
     
     ########################################################
-    ## 计算观测风险差尺度真值
+    ## compute the true value on the observed risk-difference scale
     ##
-    ## 注意：
-    ## beta_XY 是潜变量尺度效应；
-    ## true_RD 是观测二分类结局风险差尺度效应。
+    ## note:
+    ## beta_XY is the effect on the latent-variable scale;
+    ## true_RD is the effect on the observed binary-outcome risk-difference scale.
     ########################################################
     
     p_y1 <- pnorm((alpha_y + eta_y + beta_XY) / error_sd_y)
@@ -528,7 +528,7 @@ Data_Generated <- function(type = 1,
   }
   
   ##########################################################
-  ## 4.3 删除不可观测 U 和可选潜变量
+  ## 4.3 drop the unobservable U and optional latent variables
   ##########################################################
   
   cols_to_remove <- paste0("U", 1:k)
@@ -554,7 +554,7 @@ Data_Generated <- function(type = 1,
 
 
 
-## 5. 生成 RCT / do 数据######
+## 5. generate RCT / do data ######
 
 
 Data_Generated_do <- function(type = 1,
@@ -577,15 +577,15 @@ Data_Generated_do <- function(type = 1,
                               p_x,
                               L_network = NULL,
                               
-                              ## 二分类潜变量模型参数
+                              ## binary latent-variable model parameters
                               target_py0 = 0.20,
                               conf_strength_y = 0.50,
                               error_sd_y = 1,
                               
-                              ## 连续 do 暴露误差
+                              ## continuous do exposure error
                               error_sd_x_cont = 1,
                               
-                              ## 是否保留潜变量
+                              ## whether to keep the latent variables
                               keep_latent = FALSE) {
   
   NC <- m + k
@@ -595,7 +595,7 @@ Data_Generated_do <- function(type = 1,
   check_beta_length(beta_CY, p_confound, "beta_CY")
   
   ##########################################################
-  ## 5.1 生成 C/U/L
+  ## 5.1 generate C/U/L
   ##########################################################
   
   cov_block <- generate_covariate_block(
@@ -621,7 +621,7 @@ Data_Generated_do <- function(type = 1,
   H <- as.matrix(all_confound)
   
   ##########################################################
-  ## 5.2 处理 p_x
+  ## 5.2 handle p_x
   ##########################################################
   
   if (length(p_x) == 1) {
@@ -635,13 +635,13 @@ Data_Generated_do <- function(type = 1,
   }
   
   ##########################################################
-  ## 5.3 生成 X 和 Y
+  ## 5.3 generate X and Y
   ##########################################################
   
   if (type == 1) {
     
     ########################################################
-    ## 连续 RCT/do：X 不由 H 决定
+    ## continuous RCT/do: X is not determined by H
     ########################################################
     
     x <- px + rnorm(N, mean = 0, sd = error_sd_x_cont)
@@ -672,9 +672,9 @@ Data_Generated_do <- function(type = 1,
   } else if (type == 2) {
     
     ########################################################
-    ## 二分类 RCT/do：
-    ## X 随机化，不由 H 决定；
-    ## Y 仍由 H 的非处理通路和 X 的处理效应共同决定。
+    ## binary RCT/do:
+    ## X is randomized and not determined by H;
+    ## Y is still determined by the non-treatment path of H and the treatment effect of X.
     ########################################################
     
     px <- pmin(pmax(px, 1e-6), 1 - 1e-6)
@@ -732,7 +732,7 @@ Data_Generated_do <- function(type = 1,
   }
   
   ##########################################################
-  ## 5.4 删除不可观测 U 和可选潜变量
+  ## 5.4 drop the unobservable U and optional latent variables
   ##########################################################
   
   cols_to_remove <- paste0("U", 1:k)
@@ -758,7 +758,7 @@ Data_Generated_do <- function(type = 1,
 
 
 
-## 6. 总数据生成：多中心观察性数据 + RCT/do 数据#################
+## 6. overall data generation: multicenter observational data + RCT/do data #################
 
 
 ALL_data <- function(type,
@@ -782,7 +782,7 @@ ALL_data <- function(type,
                      Clv,
                      p_x,
                      
-                     ## 二分类潜变量模型参数
+                     ## binary latent-variable model parameters
                      target_px_ob = 0.50,
                      target_py0 = 0.20,
                      conf_strength_x = 0.50,
@@ -790,7 +790,7 @@ ALL_data <- function(type,
                      error_sd_x = 1,
                      error_sd_y = 1,
                      
-                     ## 是否保留潜变量
+                     ## whether to keep the latent variables
                      keep_latent = FALSE) {
   
   if (length(Nall) != N_center) {
@@ -798,7 +798,7 @@ ALL_data <- function(type,
   }
   
   ##########################################################
-  ## 6.1 固定一套 L 网络结构
+  ## 6.1 fix one L network structure
   ##########################################################
   
   total_vars <- n1 + n2 + n3
@@ -821,7 +821,7 @@ ALL_data <- function(type,
   )
   
   ##########################################################
-  ## 6.2 生成多个观察性中心
+  ## 6.2 generate several observational centers
   ##########################################################
   
   data_list <- vector("list", N_center)
@@ -869,7 +869,7 @@ ALL_data <- function(type,
   all_data <- do.call(rbind, data_list)
   
   ##########################################################
-  ## 6.3 生成 RCT / do 数据
+  ## 6.3 generate RCT / do data
   ##########################################################
   
   gen_rct <- Data_Generated_do(
@@ -904,7 +904,7 @@ ALL_data <- function(type,
   rct_diag$N <- Nrct
   
   ##########################################################
-  ## 6.4 汇总真值和诊断信息
+  ## 6.4 summarize true values and diagnostics
   ##########################################################
   
   if (type == 1) {
@@ -943,7 +943,7 @@ ALL_data <- function(type,
   )
   
   ##########################################################
-  ## 6.5 返回
+  ## 6.5 return
   ##########################################################
   
   return(list(
@@ -959,10 +959,10 @@ ALL_data <- function(type,
 
 
 
-## 二分类版本：稳健线性投影变量筛选###################
+## binary version: robust linear-projection variable selection ###################
 
 
-## 0. 安全计算绝对相关系数##############
+## 0. safe absolute correlation ##############
 
 
 safe_abs_cor <- function(x, y) {
@@ -980,7 +980,7 @@ safe_abs_cor <- function(x, y) {
 
 
 
-## 1. 影响函数稳健线性回归：提取某个 term 的系数、SE、P 值##############
+## 1. influence-function robust linear regression: extract coefficient, SE, and P value of a term ##############
 
 
 robust_lm_term_if <- function(y,
@@ -990,7 +990,7 @@ robust_lm_term_if <- function(y,
                               min_n = 20) {
   
   ##########################################################
-  ## 返回空结果
+  ## return an empty result
   ##########################################################
   
   empty_result <- function() {
@@ -1007,7 +1007,7 @@ robust_lm_term_if <- function(y,
   }
   
   ##########################################################
-  ## 基本整理
+  ## basic tidying
   ##########################################################
   
   dat <- data.frame(y = y, x_df)
@@ -1019,12 +1019,12 @@ robust_lm_term_if <- function(y,
     return(empty_result())
   }
   
-  ## y 必须有变异
+  ## y must vary
   if (length(unique(dat$y)) < 2) {
     return(empty_result())
   }
   
-  ## 构建设计矩阵
+  ## build the design matrix
   mm <- try(
     model.matrix(
       object = as.formula(
@@ -1049,7 +1049,7 @@ robust_lm_term_if <- function(y,
     return(empty_result())
   }
   
-  ## 检查秩
+  ## check the rank
   qr_mm <- qr(mm)
   
   if (qr_mm$rank < p) {
@@ -1057,7 +1057,7 @@ robust_lm_term_if <- function(y,
   }
   
   ##########################################################
-  ## OLS 点估计
+  ## OLS point estimate
   ##########################################################
   
   beta_hat <- try(
@@ -1077,10 +1077,10 @@ robust_lm_term_if <- function(y,
   res <- dat$y - y_hat
   
   ##########################################################
-  ## 影响函数稳健方差
+  ## influence-function robust variance
   ##
   ## beta_hat - beta ≈ (X'X)^(-1) sum_i x_i e_i
-  ## 每个样本对 beta 的贡献：
+  ## contribution of each observation to beta:
   ## IF_i = e_i * x_i' (X'X)^(-1)
   ##########################################################
   
@@ -1096,7 +1096,7 @@ robust_lm_term_if <- function(y,
   IF_mat <- mm %*% XtX_inv
   IF_mat <- sweep(IF_mat, 1, res, "*")
   
-  ## HC1 小样本校正
+  ## HC1 small-sample correction
   if (hc_type == "HC1") {
     IF_mat <- IF_mat * sqrt(n / (n - p))
   }
@@ -1135,8 +1135,8 @@ robust_lm_term_if <- function(y,
 
 
 
-## 2. 简单线性投影：A ~ Z##############
-##    用于 X ~ Z
+## 2. simple linear projection: A ~ Z ##############
+##    used for X ~ Z
 
 
 robust_simple_slope <- function(A,
@@ -1157,7 +1157,7 @@ robust_simple_slope <- function(A,
 
 
 
-## 3. 单中心筛选函数##############
+## 3. single-center selection function ##############
 
 
 select_binary_iv_one_center <- function(data_i,
@@ -1173,7 +1173,7 @@ select_binary_iv_one_center <- function(data_i,
                                         max_iv = Inf) {
   
   ##########################################################
-  ## 空结果
+  ## empty result
   ##########################################################
   
   empty_out <- function() {
@@ -1206,7 +1206,7 @@ select_binary_iv_one_center <- function(data_i,
   }
   
   ##########################################################
-  ## 逐个候选变量计算筛选指标
+  ## compute the selection statistics for each candidate variable
   ##########################################################
   
   score_list <- vector("list", length(covariates_i))
@@ -1221,7 +1221,7 @@ select_binary_iv_one_center <- function(data_i,
     
     Z_j <- data_i[[var_j]]
     
-    ## 变量无变异，跳过
+    ## variable has no variation; skip
     if (length(unique(Z_j[!is.na(Z_j)])) < 2) {
       score_list[[j]] <- data.frame(
         var = var_j,
@@ -1243,7 +1243,7 @@ select_binary_iv_one_center <- function(data_i,
     }
     
     ########################################################
-    ## 1. 暴露关联：X ~ Z
+    ## 1. exposure association: X ~ Z
     ########################################################
     
     fit_x <- robust_simple_slope(
@@ -1254,10 +1254,10 @@ select_binary_iv_one_center <- function(data_i,
     )
     
     ########################################################
-    ## 2. 结局关联：Y ~ X + Z 或 Y ~ Z
+    ## 2. outcome association: Y ~ X + Z or Y ~ Z
     ##
-    ## 默认用 Y ~ X + Z：
-    ## 目的是筛选在给定 X 后仍与 Y 相关的候选混杂工具。
+    ## Y ~ X + Z is used by default:
+    ## the aim is to select candidate confounding instruments still associated with Y given X.
     ########################################################
     
     if (y_adjust_x) {
@@ -1284,7 +1284,7 @@ select_binary_iv_one_center <- function(data_i,
     }
     
     ########################################################
-    ## 3. 通过规则
+    ## 3. selection rules
     ########################################################
     
     pass_X <- isTRUE(fit_x$valid) &&
@@ -1324,7 +1324,7 @@ select_binary_iv_one_center <- function(data_i,
   }
   
   ##########################################################
-  ## 候选变量：同时通过 X 和 Y 筛选
+  ## candidate variables: pass both the X and Y criteria
   ##########################################################
   
   candidates <- score_table[
@@ -1343,7 +1343,7 @@ select_binary_iv_one_center <- function(data_i,
   }
   
   ##########################################################
-  ## 排序：优先 robust F_XZ，其次 |beta_XZ|
+  ## ordering: robust F_XZ first, then |beta_XZ|
   ##########################################################
   
   candidates$abs_beta_XZ <- abs(candidates$beta_XZ)
@@ -1361,10 +1361,10 @@ select_binary_iv_one_center <- function(data_i,
   ordered_vars <- candidates$var
   
   ##########################################################
-  ## 去除高度相关变量
+  ## remove highly correlated variables
   ##
-  ## 由于 candidates 已经按 F_XZ 排序，
-  ## 所以遇到相关性过高时保留前面的强变量，跳过后面的弱变量。
+  ## since candidates are already sorted by F_XZ,
+  ## so when correlation is too high, keep the earlier, stronger variable and skip the later, weaker one.
   ##########################################################
   
   final_vars <- character(0)
@@ -1386,13 +1386,13 @@ select_binary_iv_one_center <- function(data_i,
   }
   
   ##########################################################
-  ## 根据 selcetnum 控制单工具或多工具
+  ## use selcetnum to choose single or multiple instruments
   ##
-  ## 逻辑：
-  ##   selcetnum = 1       ：只选最强 1 个
-  ##   selcetnum = "multi" ：保留多个
-  ##   selcetnum > 1       ：如果候选数 <= selcetnum，则退回最强 1 个；
-  ##                         如果候选数 > selcetnum，则保留多个
+  ## logic:
+  ##   selcetnum = 1       : select only the strongest one
+  ##   selcetnum = "multi" : keep several
+  ##   selcetnum > 1       : if the number of candidates <= selcetnum, fall back to the strongest one;
+  ##                         if the number of candidates > selcetnum, keep several
   ##########################################################
   
   if (length(final_vars) > 0) {
@@ -1419,7 +1419,7 @@ select_binary_iv_one_center <- function(data_i,
   }
   
   ##########################################################
-  ## 控制最大工具数量
+  ## limit the maximum number of instruments
   ##########################################################
   
   if (is.finite(max_iv) && length(final_vars) > max_iv) {
@@ -1434,9 +1434,9 @@ select_binary_iv_one_center <- function(data_i,
 
 
 
-## 4. 多中心：不同中心独立筛选工具变量##############
+## 4. multicenter: each center selects its instruments independently ##############
 ##
-## 可直接替代原 variable_selection_sorted()
+## can directly replace the original variable_selection_sorted()
 
 
 variable_selection_binary_robust <- function(N_center,
@@ -1527,9 +1527,9 @@ variable_selection_binary_robust <- function(N_center,
 
 
 
-## 5. 多中心：最大中心筛选共同工具变量##############
+## 5. multicenter: select common instruments in the largest center ##############
 ##
-## 与 variable_selection_largest_center_common() 的做法相同
+## same approach as variable_selection_largest_center_common()
 
 
 variable_selection_binary_common_robust <- function(N_center,
@@ -1556,7 +1556,7 @@ variable_selection_binary_common_robust <- function(N_center,
   }
   
   ##########################################################
-  ## 找到样本量最大的中心
+  ## find the center with the largest sample size
   ##########################################################
   
   center_tab <- table(data$all_data$centre)
@@ -1579,7 +1579,7 @@ variable_selection_binary_common_robust <- function(N_center,
   ]
   
   ##########################################################
-  ## 在最大中心筛选
+  ## select in the largest center
   ##########################################################
   
   out_ref <- select_binary_iv_one_center(
@@ -1599,7 +1599,7 @@ variable_selection_binary_common_robust <- function(N_center,
   common_vars <- out_ref$selected_vars
   
   ##########################################################
-  ## 所有中心使用同一组工具
+  ## all centers use the same instrument set
   ##########################################################
   
   all_final_vars <- vector("list", N_center)
@@ -1644,15 +1644,15 @@ variable_selection_binary_common_robust <- function(N_center,
 
 
 ############################################################
-## 二分类 CON-IV 方法估计函数
+## binary CON-IV estimation function
 ##
-## 适用于：
-##   1. 二分类 X
-##   2. 二分类 Y
-##   3. 不使用 logistic
-##   4. 估计观测风险差尺度效应
-##   5. 方差：影响函数 robust 协方差 + delta method
-##   6. 多中心合并：共享 RCT/do 协方差校正 GLS
+## applies to:
+##   1. binary X
+##   2. binary Y
+##   3. no logistic model is used
+##   4. estimate the effect on the observed risk-difference scale
+##   5. variance: robust influence-function covariance + delta method
+##   6. multicenter combination: GLS corrected for the shared RCT/do covariance
 ############################################################
 
 suppressPackageStartupMessages({
@@ -1661,7 +1661,7 @@ suppressPackageStartupMessages({
 
 
 ############################################################
-## 1. 空结果函数
+## 1. empty-result function
 ############################################################
 
 empty_center_result <- function(center_id = NA,
@@ -1696,12 +1696,12 @@ empty_center_result <- function(center_id = NA,
 
 
 ############################################################
-## 2. 单变量线性投影斜率 + 影响函数
+## 2. single-variable linear projection slope + influence function
 ##
-## 估计：
+## estimation:
 ##   A ~ Z
 ##
-## 返回：
+## returns:
 ##   beta, se, p, F, IF
 ############################################################
 
@@ -1813,14 +1813,14 @@ slope_if_simple <- function(A,
 
 
 ############################################################
-## 3. 多个工具变量的简单斜率矩阵
+## 3. simple slope matrix for several instruments
 ##
-## 对每个 Z_j 单独估计：
+## estimate each Z_j separately:
 ##   A ~ Z_j
 ##
-## 返回：
-##   beta 向量
-##   IF 矩阵
+## returns:
+##   beta vector
+##   IF matrix
 ##   vcov = crossprod(IF)
 ############################################################
 
@@ -1903,10 +1903,10 @@ slope_if_matrix <- function(A,
 
 
 ############################################################
-## 4. RCT/do 中 Y ~ Z 的斜率协方差矩阵
+## 4. covariance matrix of the Y ~ Z slopes in RCT/do
 ##
-## 所有中心共用同一个 RCT/do，因此这里的协方差
-## 后续会进入多中心 V 矩阵的非对角线。
+## all centers share the same RCT/do, so the covariance here
+## these enter the off-diagonal elements of the multicenter V matrix.
 ############################################################
 
 rct_slope_vcov_if <- function(data_rct,
@@ -1953,7 +1953,7 @@ rct_slope_vcov_if <- function(data_rct,
 
 
 ############################################################
-## 5. 权重矩阵构造函数
+## 5. weight-matrix constructor
 ##
 ## weight_type:
 ##   identity    : W = I
@@ -1996,11 +1996,11 @@ make_weight_matrix <- function(Sigma_delta,
 
 
 ############################################################
-## 6. 单中心二分类 CON-IV 估计
+## 6. single-center binary CON-IV estimate
 ##
 ## tool_mode:
-##   single : 单工具 Wald ratio
-##   multi  : 多工具 IVW/GMM 型估计
+##   single : single-instrument Wald ratio
+##   multi  : multiple-instrument IVW/GMM-type estimate
 ############################################################
 
 estimate_binary_coniv_one_center <- function(data_OB,
@@ -2038,7 +2038,7 @@ estimate_binary_coniv_one_center <- function(data_OB,
   }
   
   ##########################################################
-  ## 1. 观察性中心中估计：
+  ## 1. estimation in observational centers:
   ##    pi       = slope(X ~ Z)
   ##    gamma_OB = slope(Y ~ Z)
   ##########################################################
@@ -2074,7 +2074,7 @@ estimate_binary_coniv_one_center <- function(data_OB,
   }
   
   ##########################################################
-  ## 2. 提取向量和矩阵
+  ## 2. extract vectors and matrices
   ##########################################################
   
   pi_vec <- fit_x$beta[common_iv]
@@ -2090,7 +2090,7 @@ estimate_binary_coniv_one_center <- function(data_OB,
   IF_x <- fit_x$IF[, common_iv, drop = FALSE]
   IF_y <- fit_y$IF[, common_iv, drop = FALSE]
   
-  ## 同一观察性中心内：
+  ## within the same observational center:
   ## Cov(delta, pi) = Cov(gamma_OB, pi)
   Sigma_delta_pi <- crossprod(IF_y, IF_x)
   
@@ -2099,7 +2099,7 @@ estimate_binary_coniv_one_center <- function(data_OB,
   K <- length(common_iv)
   
   ##########################################################
-  ## 3. 权重矩阵
+  ## 3. weight matrix
   ##########################################################
   
   W <- make_weight_matrix(
@@ -2108,12 +2108,12 @@ estimate_binary_coniv_one_center <- function(data_OB,
   )
   
   ##########################################################
-  ## 4. 统一估计公式
+  ## 4. unified estimation formula
   ##
-  ## 单工具时自动退化为：
+  ## with a single instrument this reduces automatically to:
   ##   theta = delta / pi
   ##
-  ## 多工具时：
+  ## with multiple instruments:
   ##   theta = pi' W delta / pi' W pi
   ##########################################################
   
@@ -2187,7 +2187,7 @@ estimate_binary_coniv_one_center <- function(data_OB,
 
 
 ############################################################
-## 7. 多中心逐中心估计
+## 7. multicenter center-by-center estimation
 ############################################################
 
 estimate_binary_coniv_centers <- function(data,
@@ -2202,7 +2202,7 @@ estimate_binary_coniv_centers <- function(data,
   tool_mode <- match.arg(tool_mode)
   weight_type <- match.arg(weight_type)
   
-  ## 筛选结果可以是向量或 list(selected = ...)
+  ## selection results can be a vector or list(selected = ...)
   if (!is.null(IV_list$selected)) {
     IV_list <- IV_list$selected
   }
@@ -2238,7 +2238,7 @@ estimate_binary_coniv_centers <- function(data,
 
 
 ############################################################
-## 8. V 矩阵数值稳定处理
+## 8. numerical stabilization of the V matrix
 ############################################################
 
 stabilize_vcov_matrix <- function(V,
@@ -2279,12 +2279,12 @@ stabilize_vcov_matrix <- function(V,
 
 
 ############################################################
-## 9. 多中心 GLS 合并
+## 9. multicenter GLS combination
 ##
-## 对角线：
+## diagonal:
 ##   V_cc = Var(theta_c)
 ##
-## 非对角线：
+## off-diagonal:
 ##   V_cd = a_c' Sigma_RCT[S_c, S_d] a_d
 ############################################################
 
@@ -2326,7 +2326,7 @@ combine_binary_coniv_gls <- function(center_results,
   rownames(V) <- colnames(V) <- names(valid_results)
   
   ##########################################################
-  ## 对角线
+  ## diagonal
   ##########################################################
   
   for (i in seq_len(C_valid)) {
@@ -2334,7 +2334,7 @@ combine_binary_coniv_gls <- function(center_results,
   }
   
   ##########################################################
-  ## 非对角线：共享 RCT/do 导致的中心间协方差
+  ## off-diagonal: between-center covariance due to the shared RCT/do
   ##########################################################
   
   if (C_valid >= 2) {
@@ -2377,7 +2377,7 @@ combine_binary_coniv_gls <- function(center_results,
   V_original <- V
   
   ##########################################################
-  ## 稳定 V 矩阵
+  ## stabilize the V matrix
   ##########################################################
   
   stab <- stabilize_vcov_matrix(
@@ -2477,14 +2477,14 @@ combine_binary_coniv_gls <- function(center_results,
 
 
 ############################################################
-## 10. 已知 IV_list 时的一键运行函数
+## 10. one-call function when IV_list is known
 ##
-## 这个函数不负责变量筛选；
-## 只负责：
-##   1. 整理所有 IV
-##   2. 构造 RCT/do 信息
-##   3. 中心内估计
-##   4. 多中心 GLS 合并
+## this function does not perform variable selection;
+## responsible only for:
+##   1. collect all IVs
+##   2. construct the RCT/do information
+##   3. within-center estimation
+##   4. multicenter GLS combination
 ############################################################
 
 run_binary_coniv_given_ivlist <- function(data,
@@ -2551,10 +2551,10 @@ run_binary_coniv_given_ivlist <- function(data,
 
 
 ############################################################
-## 方法 1：
+## method 1:
 ## Binary-CONIV-Single-Common
 ##
-## 单工具 + 所有中心共用同一个工具
+## single instrument + all centers share the same instrument
 ############################################################
 
 run_binary_coniv_single_common <- function(data,
@@ -2617,10 +2617,10 @@ run_binary_coniv_single_common <- function(data,
 
 
 ############################################################
-## 方法 2：
+## method 2:
 ## Binary-CONIV-Single-CenterSpecific
 ##
-## 单工具 + 每个中心单独筛选自己的工具
+## single instrument + each center selects its own instrument
 ############################################################
 
 run_binary_coniv_single_center_specific <- function(data,
@@ -2679,10 +2679,10 @@ run_binary_coniv_single_center_specific <- function(data,
 }
 
 ############################################################
-## 方法 3：
+## method 3:
 ## Binary-CONIV-Multi-Common
 ##
-## 多工具 + 所有中心共用同一组工具
+## multiple instruments + all centers share the same instrument set
 ############################################################
 
 run_binary_coniv_multi_common <- function(data,
@@ -2711,8 +2711,8 @@ run_binary_coniv_multi_common <- function(data,
   ##
   ## selcetnum = multi_iv_threshold
   ##
-  ##   如果候选工具数 <= 5，自动退回最强 1 个；
-  ##   如果候选工具数 >  5，保留多个工具。
+  ##   if the number of candidate instruments <= 5, automatically fall back to the strongest one;
+  ##   if the number of candidate instruments >  5, keep several instruments.
   ##
   ## max_iv = Inf
   ##########################################################
@@ -2758,10 +2758,10 @@ run_binary_coniv_multi_common <- function(data,
   return(result)
 }
 ############################################################
-## 方法 4：
+## method 4:
 ## Binary-CONIV-Multi-CenterSpecific
 ##
-## 多工具 + 每个中心单独筛选自己的工具集合
+## multiple instruments + each center selects its own instrument set
 ############################################################
 
 run_binary_coniv_multi_center_specific <- function(data,
@@ -2790,9 +2790,9 @@ run_binary_coniv_multi_center_specific <- function(data,
   ##
   ## selcetnum = multi_iv_threshold
   ##
-  ## 每个中心分别判断：
-  ##   候选工具数 <= 5：该中心退回单工具
-  ##   候选工具数 >  5：该中心使用多工具
+  ## decide separately for each center:
+  ##   number of candidate instruments <= 5: the center falls back to a single instrument
+  ##   number of candidate instruments >  5: the center uses multiple instruments
   ##########################################################
   
   selection <- variable_selection_binary_robust(
@@ -2834,7 +2834,7 @@ run_binary_coniv_multi_center_specific <- function(data,
   return(result)
 }
 ############################################################
-## 同时运行四种二分类 CON-IV 方法
+## run the four binary CON-IV methods together
 ############################################################
 
 run_binary_coniv_all_methods <- function(data,
@@ -2925,7 +2925,7 @@ run_binary_coniv_all_methods <- function(data,
 }
 
 ############################################################
-## 提取四种方法的核心结果
+## extract the core results of the four methods
 ############################################################
 
 summarize_binary_coniv_results <- function(results_all,
@@ -2986,24 +2986,24 @@ summarize_binary_coniv_results <- function(results_all,
 
 
 ############################################################
-## 传统观察性方法变量筛选函数
+## variable selection function for conventional observational methods
 ##
-## 筛选策略：
+## selection strategy:
 ##
-## out = "both"：
-##   同时与 Y 和 X 相关，用于回归调整
+## out = "both":
+##   associated with both Y and X; used for regression adjustment
 ##
-## out = "X"：
-##   只筛选与 X 相关的变量，用于 PSM 和 IPW-MSM
+## out = "X":
+##   select only variables associated with X, for PSM and IPW-MSM
 ##
-## out = "Y"：
-##   只筛选与 Y 相关，一般备用
+## out = "Y":
+##   select only variables associated with Y; usually a fallback
 ##
-## type == 1：
-##   连续型，使用 lm，阈值 0.05 / 候选变量数
+## type == 1:
+##   continuous: lm, threshold 0.05 / number of candidates
 ##
-## type == 2：
-##   二分类，使用 logistic，阈值 0.05
+## type == 2:
+##   binary: logistic model, threshold 0.05
 ############################################################
 
 empty_covariate_list <- function(N_center) {
@@ -3051,8 +3051,8 @@ Select_other <- function(data,
       var_j <- covariates_i[j]
       
       ######################################################
-      ## Y 相关性模型：Y ~ X + Z_j
-      ## X 相关性模型：X ~ Z_j
+      ## Y association model: Y ~ X + Z_j
+      ## X association model: X ~ Z_j
       ######################################################
       
       if (type == 1) {
@@ -3126,7 +3126,7 @@ Select_other <- function(data,
     }
     
     ########################################################
-    ## P 值阈值：保持原策略
+    ## P-value threshold: keep the original strategy
     ########################################################
     
     if (type == 1) {
@@ -3318,7 +3318,7 @@ meta_combine_center_results <- function(center_df,
 }
 
 ############################################################
-## 稳健线性模型：提取 X 的 RD 和 robust SE
+## robust linear model: extract the RD of X and its robust SE
 ############################################################
 
 robust_lm_X <- function(formula,
@@ -3390,7 +3390,7 @@ robust_lm_X <- function(formula,
   IF_mat <- Xmat %*% XtWX_inv
   IF_mat <- sweep(IF_mat, 1, w * res, "*")
   
-  ## HC1 校正
+  ## HC1 correction
   IF_mat <- IF_mat * sqrt(n / (n - p))
   
   vcov_mat <- crossprod(IF_mat)
@@ -3409,17 +3409,17 @@ robust_lm_X <- function(formula,
 
 
 ############################################################
-## 方法一：回归调整
+## method 1: regression adjustment
 ##
-## 变量筛选：
+## variable selection:
 ##   covariates_both = Select_other(..., out = "both")
 ##
-## 模型：
-##   每个中心分别拟合：
+## model:
+##   fit separately in each center:
 ##     Y ~ X + selected_covariates
 ##
-## 效应尺度：
-##   风险差 RD
+## effect scale:
+##   risk difference RD
 ############################################################
 
 ALL_adjust_RD <- function(ALLdata,
@@ -3443,7 +3443,7 @@ ALL_adjust_RD <- function(ALLdata,
     ]
     
     ########################################################
-    ## 构建模型
+    ## build the model
     ########################################################
     
     if (length(cov_cen) > 0) {
@@ -3481,7 +3481,7 @@ ALL_adjust_RD <- function(ALLdata,
 
 
 ############################################################
-## 计算 logit
+## compute the logit
 ############################################################
 
 logit_fun <- function(p) {
@@ -3491,10 +3491,10 @@ logit_fun <- function(p) {
 
 
 ############################################################
-## 单中心 1:1 最近邻 PSM
+## single-center 1:1 nearest-neighbor PSM
 ##
-## 不放回匹配
-## caliper 默认 0.2 * SD(logit PS)
+## matching without replacement
+## caliper defaults to 0.2 * SD(logit PS)
 ############################################################
 
 psm_match_one_center <- function(data_i,
@@ -3566,22 +3566,22 @@ psm_match_one_center <- function(data_i,
 
 
 ############################################################
-## 方法二：PSM
+## method 2: PSM
 ##
-## 变量筛选：
+## variable selection:
 ##   covariates_X = Select_other(..., out = "X")
 ##
-## PS 模型：
+## PS model:
 ##   X ~ selected_covariates
 ##
-## 匹配：
-##   每个中心内 1:1 最近邻不放回，caliper = 0.2 SD(logit PS)
+## matching:
+##   1:1 nearest-neighbor matching without replacement within each center, caliper = 0.2 SD(logit PS)
 ##
-## 结局模型：
-##   匹配样本中 Y ~ X
+## outcome model:
+##   Y ~ X in the matched sample
 ##
-## 效应尺度：
-##   风险差 RD
+## effect scale:
+##   risk difference RD
 ############################################################
 
 ALL_PSM_RD <- function(ALLdata,
@@ -3607,7 +3607,7 @@ ALL_PSM_RD <- function(ALLdata,
     ]
     
     ########################################################
-    ## PS 模型
+    ## PS model
     ########################################################
     
     if (length(cov_cen) > 0) {
@@ -3668,7 +3668,7 @@ ALL_PSM_RD <- function(ALLdata,
     ps <- pmin(pmax(ps, ps_trim), 1 - ps_trim)
     
     ########################################################
-    ## 1:1 最近邻匹配
+    ## 1:1 nearest-neighbor matching
     ########################################################
     
     matched_data <- psm_match_one_center(
@@ -3713,23 +3713,23 @@ ALL_PSM_RD <- function(ALLdata,
 
 
 ############################################################
-## 方法三：IPW-MSM
+## method 3: IPW-MSM
 ##
-## 变量筛选：
+## variable selection:
 ##   covariates_X = Select_other(..., out = "X")
 ##
-## PS 模型：
+## PS model:
 ##   X ~ selected_covariates
 ##
-## 稳定化权重：
+## stabilized weights:
 ##   X=1: P(X=1) / PS
 ##   X=0: P(X=0) / (1-PS)
 ##
-## MSM：
-##   Y ~ X，加权稳健线性模型
+## MSM:
+##   Y ~ X, weighted robust linear model
 ##
-## 效应尺度：
-##   风险差 RD
+## effect scale:
+##   risk difference RD
 ############################################################
 
 ALL_IPW_MSM_RD <- function(ALLdata,
@@ -3755,7 +3755,7 @@ ALL_IPW_MSM_RD <- function(ALLdata,
     ]
     
     ########################################################
-    ## PS 模型
+    ## PS model
     ########################################################
     
     if (length(cov_cen) > 0) {
@@ -3821,7 +3821,7 @@ ALL_IPW_MSM_RD <- function(ALLdata,
     ps <- pmin(pmax(ps, ps_trim), 1 - ps_trim)
     
     ########################################################
-    ## 稳定化权重
+    ## stabilized weights
     ########################################################
     
     p_treat <- mean(dat_ps$X == 1, na.rm = TRUE)
@@ -3834,7 +3834,7 @@ ALL_IPW_MSM_RD <- function(ALLdata,
     )
     
     ########################################################
-    ## 权重截尾
+    ## weight truncation
     ########################################################
     
     if (!is.null(weight_trunc_quantile)) {
@@ -3846,7 +3846,7 @@ ALL_IPW_MSM_RD <- function(ALLdata,
     ess <- sum(sw)^2 / sum(sw^2)
     
     ########################################################
-    ## 加权 MSM：Y ~ X
+    ## weighted MSM: Y ~ X
     ########################################################
     
     est <- robust_lm_X(
@@ -3878,17 +3878,17 @@ ALL_IPW_MSM_RD <- function(ALLdata,
 
 
 ############################################################
-## 一键运行三种传统比较方法
+## run the three conventional comparison methods in one call
 ##
-## 筛选策略：
+## selection strategy:
 ##
-## 回归调整：
+## regression adjustment:
 ##   covariates_both = Select_other(..., out = "both")
 ##
-## PSM：
+## PSM:
 ##   covariates_X = Select_other(..., out = "X")
 ##
-## IPW-MSM：
+## IPW-MSM:
 ##   covariates_X = Select_other(..., out = "X")
 ############################################################
 
@@ -3901,7 +3901,7 @@ run_traditional_methods_binary <- function(data,
                                            min_n = 20) {
   
   ##########################################################
-  ## 1. 候选变量
+  ## 1. candidate variables
   ##########################################################
   
   covariates_all <- setdiff(
@@ -3910,7 +3910,7 @@ run_traditional_methods_binary <- function(data,
   )
   
   ##########################################################
-  ## 2. 传统方法变量筛选
+  ## 2. variable selection for conventional methods
   ##########################################################
   
   covariates_both <- try(
@@ -3944,7 +3944,7 @@ run_traditional_methods_binary <- function(data,
   }
   
   ##########################################################
-  ## 3. 方法一：回归调整
+  ## 3. method 1: regression adjustment
   ##########################################################
   
   result_adjust <- try(
@@ -3966,7 +3966,7 @@ run_traditional_methods_binary <- function(data,
   }
   
   ##########################################################
-  ## 4. 方法二：PSM
+  ## 4. method 2: PSM
   ##########################################################
   
   result_psm <- try(
@@ -3990,7 +3990,7 @@ run_traditional_methods_binary <- function(data,
   }
   
   ##########################################################
-  ## 5. 方法三：IPW-MSM
+  ## 5. method 3: IPW-MSM
   ##########################################################
   
   result_ipw <- try(
@@ -4014,7 +4014,7 @@ run_traditional_methods_binary <- function(data,
   }
   
   ##########################################################
-  ## 6. 返回
+  ## 6. return
   ##########################################################
   
   return(list(
@@ -4030,7 +4030,7 @@ run_traditional_methods_binary <- function(data,
 
 
 ############################################################
-## 整理三种传统方法结果
+## organize the results of the three conventional methods
 ############################################################
 
 summarize_traditional_methods <- function(result_traditional,
@@ -4093,19 +4093,19 @@ summarize_traditional_methods <- function(result_traditional,
 }
 
 ############################################################
-## 1. 安全提取 final_result
+## 1. safely extract final_result
 ##
-## 可读取的输出格式：
-##   1. CON-IV GLS 输出：
+## readable output formats:
+##   1. CON-IV GLS output:
 ##      theta_gls, se_gls, p_value, ci_lower, ci_upper
 ##
-##   2. 完整 final_result：
+##   2. full final_result:
 ##      estimate, se, z_value, p_value, ci_lower, ci_upper,
 ##      p_value_t, ci_lower_t, ci_upper_t,
 ##      p_value_z, ci_lower_z, ci_upper_z,
 ##      df_meta
 ##
-##   3. 简化 final_result：
+##   3. simplified final_result:
 ##      b, se, p, lower, upper
 ############################################################
 
@@ -4129,7 +4129,7 @@ extract_final_result <- function(result_obj) {
     
     df_meta = NA_real_,
     
-    ## 也可读取其他列名
+    ## other column names can also be read
     b = NA_real_,
     p = NA_real_,
     lower = NA_real_,
@@ -4141,7 +4141,7 @@ extract_final_result <- function(result_obj) {
   }
   
   ##########################################################
-  ## 情况 1：新二分类 CON-IV GLS 输出
+  ## case 1: new binary CON-IV GLS output
   ##########################################################
   
   if (is.list(result_obj) &&
@@ -4192,7 +4192,7 @@ extract_final_result <- function(result_obj) {
   }
   
   ##########################################################
-  ## 情况 2：list 中包含 final_result
+  ## case 2: list contains final_result
   ##########################################################
   
   if (is.list(result_obj) &&
@@ -4214,7 +4214,7 @@ extract_final_result <- function(result_obj) {
   }
   
   ##########################################################
-  ## 情况 2.1：有名字
+  ## case 2.1: has names
   ##########################################################
   
   if (!is.null(names(raw_out))) {
@@ -4234,7 +4234,7 @@ extract_final_result <- function(result_obj) {
     }
     
     ########################################################
-    ## 也可读取 b / p / lower / upper 列
+    ## columns b / p / lower / upper can also be read
     ########################################################
     
     if (!is.finite(out["estimate"]) && "b" %in% names(raw_num)) {
@@ -4254,7 +4254,7 @@ extract_final_result <- function(result_obj) {
     }
     
     ########################################################
-    ## 补算 z 版本
+    ## add the z version
     ########################################################
     
     if (is.finite(out["estimate"]) &&
@@ -4305,12 +4305,12 @@ extract_final_result <- function(result_obj) {
   }
   
   ##########################################################
-  ## 情况 2.2：无列名的结果
+  ## case 2.2: results without column names
   ##
-  ## 长度 >= 6：
+  ## length >= 6:
   ##   estimate, se, z_value, p_value, ci_lower, ci_upper
   ##
-  ## 长度 == 5：
+  ## length == 5:
   ##   estimate, se, p_value, ci_lower, ci_upper
   ##########################################################
   
@@ -4373,7 +4373,7 @@ extract_final_result <- function(result_obj) {
 
 
 ############################################################
-## 2. 安全合并 data.frame
+## 2. safely bind data.frames
 ############################################################
 
 safe_rbind_df <- function(x, y) {
@@ -4425,7 +4425,7 @@ safe_rbind_df <- function(x, y) {
 
 
 ############################################################
-## 3. 空变量列表
+## 3. empty variable list
 ############################################################
 
 empty_covariate_list <- function(N_center) {
@@ -4442,7 +4442,7 @@ empty_covariate_list <- function(N_center) {
 
 
 ############################################################
-## 4. 提取筛选阶段工具数量
+## 4. extract the number of instruments at the selection stage
 ############################################################
 
 extract_selected_iv_count_info <- function(selected_covariates,
@@ -4487,7 +4487,7 @@ extract_selected_iv_count_info <- function(selected_covariates,
 
 
 ############################################################
-## 5. 提取实际估计使用工具数量
+## 5. extract the number of instruments actually used in estimation
 ############################################################
 
 extract_used_iv_count_info <- function(result_obj) {
@@ -4504,7 +4504,7 @@ extract_used_iv_count_info <- function(result_obj) {
   }
   
   ##########################################################
-  ## 新二分类 CON-IV：center_results 是 list
+  ## new binary CON-IV: center_results is a list
   ##########################################################
   
   if (!is.null(result_obj$center_results)) {
@@ -4530,7 +4530,7 @@ extract_used_iv_count_info <- function(result_obj) {
   }
   
   ##########################################################
-  ## center_result 中有 iv_count 时
+  ## when center_result contains iv_count
   ##########################################################
   
   if (!is.null(result_obj$center_result)) {
@@ -4583,7 +4583,7 @@ extract_used_iv_count_info <- function(result_obj) {
 
 
 ############################################################
-## 6. 提取 final_result + 工具数量
+## 6. extract final_result + numbers of instruments
 ############################################################
 
 extract_final_result_with_iv_count <- function(result_obj,
@@ -4616,7 +4616,7 @@ extract_final_result_with_iv_count <- function(result_obj,
 
 
 ############################################################
-## 7. 保存二分类 CON-IV 中心诊断信息
+## 7. save center diagnostics of binary CON-IV
 ############################################################
 
 center_results_to_df <- function(center_results,
@@ -4671,7 +4671,7 @@ save_binary_coniv_diagnostics <- function(result_tmp,
   }
   
   ##########################################################
-  ## 变量筛选诊断表
+  ## variable selection diagnostics table
   ##########################################################
   
   if (!is.null(result_tmp$selection_diagnostics)) {
@@ -4693,7 +4693,7 @@ save_binary_coniv_diagnostics <- function(result_tmp,
   }
   
   ##########################################################
-  ## 中心估计结果
+  ## center estimates
   ##########################################################
   
   if (!is.null(result_tmp$center_results)) {
@@ -6329,14 +6329,14 @@ collect_confounding_diagnostics <- function(beta_diag,
 
 
 ############################################################
-## 输出路径
+## output path
 ############################################################
 
 out_dir <- "results"
 dir.create(path.expand(out_dir), recursive = TRUE, showWarnings = FALSE)
 
 ############################################################
-## 1. 基础参数设置
+## 1. basic parameter settings
 ############################################################
 
 m <- 15
@@ -6355,10 +6355,10 @@ connection_prob <- 0.5
 
 
 ############################################################
-## 2. 数据类型设置
+## 2. data type settings
 ##
-## type = 2 表示 X/Y 为二分类
-## typeC = 1 表示 C/L 为连续变量
+## type = 2 means X/Y are binary
+## typeC = 1 means C/L are continuous variables
 ############################################################
 
 type <- 2
@@ -6366,7 +6366,7 @@ typeC <- 1
 
 
 ############################################################
-## 3. L 层混杂变量设置
+## 3. L-layer confounder settings
 ############################################################
 
 conf_L <- sample(
@@ -6378,7 +6378,7 @@ p_confound <- m + k + length(conf_L)
 
 
 ############################################################
-## 4. 混杂路径参数：中等未知混杂
+## 4. confounding-path parameters: moderate unmeasured confounding
 ##
 ## Target:
 ##   U contribution around 40%-50%
@@ -6437,10 +6437,10 @@ print(eta_diag$table)
 
 
 ############################################################
-## 5. beta_XY 不在参数区固定
+## 5. beta_XY is not fixed in the parameter section
 ##
-## beta_XY 在场景循环中赋值：
-##   beta_XY = 0   -> I 类错误
+## beta_XY is assigned in the scenario loop:
+##   beta_XY = 0   -> type I error
 ##   beta_XY > 0   -> power
 ############################################################
 
@@ -6448,7 +6448,7 @@ causal <- NA
 
 
 ############################################################
-## 6. RCT / do 数据设置
+## 6. RCT / do data settings
 ############################################################
 
 Nrct <- 10000
@@ -6456,7 +6456,7 @@ p_x <- 0.5
 
 
 ############################################################
-## 7. 二分类潜变量模型参数
+## 7. binary latent-variable model parameters
 ############################################################
 
 target_px_ob <- 0.50
@@ -6470,14 +6470,14 @@ error_sd_y <- 1
 
 
 ############################################################
-## 8. 模拟次数
+## 8. number of replicates
 ############################################################
 
 N_sim <- 1000
 
 
 ############################################################
-## 9. Binary-CONIV 工具筛选参数
+## 9. Binary-CONIV instrument selection parameters
 ############################################################
 
 correlation_threshold <- 0.10
@@ -6493,7 +6493,7 @@ max_iv <- Inf
 
 
 ############################################################
-## 10. 传统方法参数：PSM 和 IPW-MSM
+## 10. conventional method parameters: PSM and IPW-MSM
 ############################################################
 
 ps_trim <- 0.01
@@ -6502,7 +6502,7 @@ weight_trunc_quantile <- c(0.01, 0.99)
 
 
 ############################################################
-## 11. 通用稳健方差参数
+## 11. common robust variance parameters
 ############################################################
 
 hc_type <- "HC1"
@@ -6510,7 +6510,7 @@ min_n <- 20
 
 
 ############################################################
-## 12. 未使用的参数
+## 12. unused parameters
 ############################################################
 
 n_boot <- NULL

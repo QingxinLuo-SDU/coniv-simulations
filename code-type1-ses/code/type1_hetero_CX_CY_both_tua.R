@@ -1,7 +1,7 @@
 
 ############################################################
-## 0. 设置每个 R 任务使用的 CPU 线程数
-## 必须放在脚本最前面
+## 0. set the number of CPU threads used by each R task
+## must be placed at the top of the script
 ############################################################
 
 n_threads <- 5
@@ -23,10 +23,10 @@ if (requireNamespace("RhpcBLASctl", quietly = TRUE)) {
 
 
 ############################################################
-## 1. 产生数据
+## 1. generate data
 ############################################################
 
-########分类函数############################
+######## classification function ############################
 Fenlei <- function(data, Clv, na.rm = TRUE) {
   
   if (Clv <= 0 || Clv >= 1) {
@@ -41,7 +41,7 @@ Fenlei <- function(data, Clv, na.rm = TRUE) {
 }
 
 
-## 先生成一套固定的 L 层网络结构 ###########
+## first generate one fixed L-layer network structure ###########
 
 
 generate_layer_network <- function(parent_indices,
@@ -58,16 +58,16 @@ generate_layer_network <- function(parent_indices,
     
     child_idx <- current_layer_indices[j]
     
-    # 固定当前 child 由哪些 parent 连接而来
+    # fix which parents each child is connected to
     is_parent <- runif(length(parent_indices)) < connection_prob
     active_parent_indices <- parent_indices[is_parent]
     
     if (length(active_parent_indices) > 0) {
       
-      # 固定边权重
+      # fix the edge weights
       weights <- runif(length(active_parent_indices), min = -1, max = 1)
       
-      # 权重归一化，避免父节点越多方差越大
+      # normalize the weights so that the variance does not grow with the number of parents
       weights <- weights / sqrt(sum(weights^2))
       
     } else {
@@ -87,7 +87,7 @@ generate_layer_network <- function(parent_indices,
 
 
 
-## 使用固定网络结构生成某一层数据#########################
+## generate one layer of data from the fixed network structure #########################
 
 
 generate_layer_data_fixed_network <- function(data_matrix,
@@ -131,7 +131,7 @@ generate_layer_data_fixed_network <- function(data_matrix,
 }
 
 
-## 生成单观察性中心数据##########
+## generate single observational center data ##########
 
 Data_Generated <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
                            n1, n2, n3, r_L, connection_prob, conf_L,
@@ -142,7 +142,7 @@ Data_Generated <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   NC <- m + k
   
   ##########################################################
-  ## 1. 生成基础 C/U 协变量
+  ## 1. generate baseline C/U covariates
   ##########################################################
   
   Sigma_CU <- matrix(rep(r, NC * NC), NC, NC)
@@ -160,7 +160,7 @@ Data_Generated <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   colnames(Cmat) <- paste0("NC", 1:NC)
   
   ##########################################################
-  ## 2. 初始化 L 层数据矩阵
+  ## 2. initialize the L-layer data matrix
   ##########################################################
   
   total_vars <- n1 + n2 + n3
@@ -173,7 +173,7 @@ Data_Generated <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   )
   
   ##########################################################
-  ## 3. 生成 L1
+  ## 3. generate L1
   ##########################################################
   
   Sigma_L <- matrix(r_L, nrow = n1, ncol = n1)
@@ -185,15 +185,15 @@ Data_Generated <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   simulated_data[, 1:n1] <- l1_data
   
   ##########################################################
-  ## 4. 使用固定网络生成 L2 和 L3
+  ## 4. generate L2 and L3 from the fixed network
   ##########################################################
   
   l1_indices <- 1:n1
   l2_indices <- (n1 + 1):(n1 + n2)
   l3_indices <- (n1 + n2 + 1):total_vars
   
-  # 如果外部没有传入 L_network，则单独生成一套。
-  # 在 ALL_data() 中会统一传入同一套 L_network。
+  # if no L_network is supplied, generate one here.
+  # ALL_data() passes the same L_network to all data sets.
   if (is.null(L_network)) {
     L_network <- list(
       L2 = generate_layer_network(
@@ -224,7 +224,7 @@ Data_Generated <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   )
   
   ##########################################################
-  ## 5. 合并协变量
+  ## 5. combine covariates
   ##########################################################
   
   df_L <- as.data.frame(simulated_data)
@@ -266,7 +266,7 @@ Data_Generated <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   all_cov <- as.data.frame(all_cov)
   
   ##########################################################
-  ## 6. 生成 X 和 Y
+  ## 6. generate X and Y
   ##########################################################
   
   px <- as.numeric(t(c(beta_CX) %*% t(all_confound)))
@@ -310,7 +310,7 @@ Data_Generated <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   }
   
   ##########################################################
-  ## 7. 删除不可观测 U
+  ## 7. drop the unobservable U
   ##########################################################
   
   cols_to_remove <- paste0("U", 1:k)
@@ -325,7 +325,7 @@ Data_Generated <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
 }
 
 
-## 生成 RCT / do 数据：固定 L 网络结构版########
+## generate RCT / do data: fixed L network version ########
 
 
 Data_Generated_do <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
@@ -337,7 +337,7 @@ Data_Generated_do <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   NC <- m + k
   
   ##########################################################
-  ## 1. 生成基础 C/U 协变量
+  ## 1. generate baseline C/U covariates
   ##########################################################
   
   Sigma_CU <- matrix(rep(r, NC * NC), NC, NC)
@@ -355,7 +355,7 @@ Data_Generated_do <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   colnames(Cmat) <- paste0("NC", 1:NC)
   
   ##########################################################
-  ## 2. 初始化 L 层数据矩阵
+  ## 2. initialize the L-layer data matrix
   ##########################################################
   
   total_vars <- n1 + n2 + n3
@@ -368,7 +368,7 @@ Data_Generated_do <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   )
   
   ##########################################################
-  ## 3. 生成 L1
+  ## 3. generate L1
   ##########################################################
   
   Sigma_L <- matrix(r_L, nrow = n1, ncol = n1)
@@ -380,7 +380,7 @@ Data_Generated_do <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   simulated_data[, 1:n1] <- l1_data
   
   ##########################################################
-  ## 4. 使用固定网络生成 L2 和 L3
+  ## 4. generate L2 and L3 from the fixed network
   ##########################################################
   
   l1_indices <- 1:n1
@@ -417,7 +417,7 @@ Data_Generated_do <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   )
   
   ##########################################################
-  ## 5. 合并协变量
+  ## 5. combine covariates
   ##########################################################
   
   df_L <- as.data.frame(simulated_data)
@@ -459,10 +459,10 @@ Data_Generated_do <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   all_cov <- as.data.frame(all_cov)
   
   ##########################################################
-  ## 6. 生成 X 和 Y
+  ## 6. generate X and Y
   ##########################################################
   
-  # do / RCT 中 X 由 p_x 控制
+  # In the do / RCT data, X is controlled by p_x
   if (length(p_x) == 1) {
     px <- rep(p_x, N)
   } else {
@@ -512,7 +512,7 @@ Data_Generated_do <- function(type = 1, typeC, UD = TRUE, r, N, m, k,
   }
   
   ##########################################################
-  ## 7. 删除不可观测 U
+  ## 7. drop the unobservable U
   ##########################################################
   
   cols_to_remove <- paste0("U", 1:k)
@@ -538,7 +538,7 @@ generate_center_specific_betas <- function(N_center,
                                            random_center_effect = TRUE) {
   
   ##########################################################
-  ## 0. 基本检查
+  ## 0. basic checks
   ##########################################################
   
   if (N_center < 1) {
@@ -559,12 +559,12 @@ generate_center_specific_betas <- function(N_center,
   
   
   ##########################################################
-  ## 1. 生成中心层面扰动
+  ## 1. generate center-level perturbations
   ##
-  ## 使用 log-normal 乘法扰动：
+  ## use a log-normal multiplicative perturbation:
   ##   mult = exp(N(-0.5*tau^2, tau^2))
   ##
-  ## 使 E(mult) 约为 1。
+  ## so that E(mult) is approximately 1.
   ##########################################################
   
   if (random_center_effect) {
@@ -601,7 +601,7 @@ generate_center_specific_betas <- function(N_center,
   
   
   ##########################################################
-  ## 2. 为每个观察性中心生成自己的 beta
+  ## 2. generate a beta for each observational center
   ##########################################################
   
   beta_CX_list <- vector("list", N_center)
@@ -623,7 +623,7 @@ generate_center_specific_betas <- function(N_center,
   
   
   ##########################################################
-  ## 3. 返回
+  ## 3. return
   ##########################################################
   
   return(list(
@@ -638,7 +638,7 @@ generate_center_specific_betas <- function(N_center,
     random_center_effect = random_center_effect
   ))
 }
-## 总数据生成：所有中心和 RCT/do 共用同一个 L_network#######
+## overall data generation: all centers and RCT/do share the same L_network #######
 
 ALL_data <- function(type, N_center, typeC, UD, r, Nall, Nrct, m, k,
                      n1, n2, n3, r_L, connection_prob, conf_L,
@@ -646,7 +646,7 @@ ALL_data <- function(type, N_center, typeC, UD, r, Nall, Nrct, m, k,
                      Clv, p_x) {
   
   ##########################################################
-  ## 1. 先固定一套 L 网络结构
+  ## 1. first fix one L network structure
   ##########################################################
   
   total_vars <- n1 + n2 + n3
@@ -669,7 +669,7 @@ ALL_data <- function(type, N_center, typeC, UD, r, Nall, Nrct, m, k,
   )
   
   ##########################################################
-  ## 2. 生成多个观察性中心
+  ## 2. generate several observational centers
   ##########################################################
   
   data_list <- vector("list", N_center)
@@ -704,7 +704,7 @@ ALL_data <- function(type, N_center, typeC, UD, r, Nall, Nrct, m, k,
   all_data <- do.call(rbind, data_list)
   
   ##########################################################
-  ## 3. 生成 RCT / do 数据
+  ## 3. generate RCT / do data
   ##########################################################
   
   rct_data <- Data_Generated_do(
@@ -730,7 +730,7 @@ ALL_data <- function(type, N_center, typeC, UD, r, Nall, Nrct, m, k,
   )
   
   ##########################################################
-  ## 4. 返回数据和固定网络
+  ## 4. return the data and the fixed network
   ##########################################################
   
   return(list(
@@ -742,25 +742,25 @@ ALL_data <- function(type, N_center, typeC, UD, r, Nall, Nrct, m, k,
 
 
 ############################################################
-## 异质性敏感性分析数据生成函数
+## data generation function for the heterogeneity sensitivity analysis
 ##
-## 与 ALL_data() 的区别：
+## difference from ALL_data():
 ##
 ##   ALL_data():
-##     所有观察中心和 RCT/do 数据共用 beta_CX、beta_CY。
+##     all observational centers and the RCT/do data share beta_CX and beta_CY.
 ##
 ##   ALL_data_hetero():
-##     观察性中心使用中心特异性 beta_CX,c、beta_CY,c；
-##     RCT/do 数据仍使用原始 beta_CX、beta_CY。
+##     observational centers use center-specific beta_CX,c and beta_CY,c;
+##     RCT/do data still use the original beta_CX and beta_CY.
 ##
-## 用途：
-##   1. CX only 敏感性分析：
+## purpose:
+##   1. CX-only sensitivity analysis:
 ##      delta_CX_OB != 1, delta_CY_OB = 1
 ##
-##   2. CY only 敏感性分析：
+##   2. CY-only sensitivity analysis:
 ##      delta_CX_OB = 1, delta_CY_OB != 1
 ##
-##   3. CX and CY both 敏感性分析：
+##   3. CX and CY both sensitivity analysis:
 ##      delta_CX_OB != 1, delta_CY_OB != 1
 ############################################################
 
@@ -791,7 +791,7 @@ ALL_data_hetero <- function(type,
                             random_center_effect = TRUE) {
   
   ##########################################################
-  ## 0. 基本检查
+  ## 0. basic checks
   ##########################################################
   
   if (length(Nall) != N_center) {
@@ -800,8 +800,8 @@ ALL_data_hetero <- function(type,
   
   
   ##########################################################
-  ## 1. 固定一套 L 网络结构
-  ##    保证观察性中心和 RCT/do 数据在 L 层网络结构上可比
+  ## 1. fix one L network structure
+  ##    keep the L-layer network structure comparable between observational centers and RCT/do data
   ##########################################################
   
   total_vars <- n1 + n2 + n3
@@ -825,7 +825,7 @@ ALL_data_hetero <- function(type,
   
   
   ##########################################################
-  ## 2. 生成观察性中心特异性的 beta_CX 和 beta_CY
+  ## 2. generate center-specific beta_CX and beta_CY for observational centers
   ##########################################################
   
   beta_info <- generate_center_specific_betas(
@@ -844,7 +844,7 @@ ALL_data_hetero <- function(type,
   
   
   ##########################################################
-  ## 3. 生成多个观察性中心
+  ## 3. generate several observational centers
   ##########################################################
   
   data_list <- vector("list", N_center)
@@ -883,12 +883,12 @@ ALL_data_hetero <- function(type,
   
   
   ##########################################################
-  ## 4. 生成 RCT / do 数据
+  ## 4. generate RCT / do data
   ##
-  ## 注意：
-  ##   RCT/do 数据仍使用原始 beta_CX 和 beta_CY。
-  ##   这样 delta_CX_OB / delta_CY_OB 才代表
-  ##   观察性中心相对于 RCT 的系统性差异。
+  ## note:
+  ##   RCT/do data still use the original beta_CX and beta_CY.
+  ##   so that delta_CX_OB / delta_CY_OB represent
+  ##   the systematic difference of observational centers relative to the RCT.
   ##########################################################
   
   rct_data <- Data_Generated_do(
@@ -915,7 +915,7 @@ ALL_data_hetero <- function(type,
   
   
   ##########################################################
-  ## 5. 返回数据和敏感性分析参数
+  ## 5. return the data and sensitivity-analysis parameters
   ##########################################################
   
   return(list(
@@ -935,7 +935,7 @@ ALL_data_hetero <- function(type,
 ## 2 CON_LV
 ############################################################
 
-###安全提取 lm 中某个变量的 P 值###########
+### safely extract the P value of a variable from lm ###########
 
 safe_lm_pvalue <- function(formula, data, term_name) {
   
@@ -951,7 +951,7 @@ safe_lm_pvalue <- function(formula, data, term_name) {
     return(NA_real_)
   }
   
-  # 如果该变量因为常数、共线性等原因没有进入模型，则返回 NA
+  # return NA if the variable was dropped from the model (e.g., constant or collinear)
   if (!term_name %in% rownames(coefs)) {
     return(NA_real_)
   }
@@ -959,7 +959,7 @@ safe_lm_pvalue <- function(formula, data, term_name) {
   return(coefs[term_name, 4])
 }
 
-## 安全计算绝对相关系数#####
+## safe absolute correlation #####
 
 
 safe_abs_cor <- function(x, y) {
@@ -977,12 +977,12 @@ safe_abs_cor <- function(x, y) {
 
 
 
-##  统一变量筛选函数
+##  unified variable selection function
 ##
 ## selcetnum:
-##   selcetnum = 1       ：每个中心只选最强 1 个工具变量
-##   selcetnum = "multi" ：保留多个工具变量，原则与原函数一致
-##   selcetnum = 3       ：可选，最多保留前 3 个
+##   selcetnum = 1       : each center selects only the strongest instrument
+##   selcetnum = "multi" : keep several instruments, following the original function
+##   selcetnum = 3       : optional; keep at most the first 3
 
 
 variable_selection_sorted <- function(N_center,
@@ -991,7 +991,7 @@ variable_selection_sorted <- function(N_center,
                                       correlation_threshold,
                                       type = 1,
                                       selcetnum = "multi") {
-  ## 0. 基本检查
+  ## 0. basic checks
   
   if (length(covariates) == 0) {
     stop("covariates is empty.")
@@ -1005,11 +1005,11 @@ variable_selection_sorted <- function(N_center,
     stop("type must be 1 or 2.")
   }
   
-  # selcetnum 可以是：
-  #   1       ：始终只选最强 1 个工具
-  #   >1 数字 ：多工具门槛；如果候选数 <= selcetnum，则只选最强 1 个；
-  #             如果候选数 > selcetnum，则保留多个工具
-  #   "multi" ：完全多工具模式，筛出多少个就保留多少个
+  # selcetnum can be:
+  #   1       : always select only the strongest instrument
+  #   number >1 : multiple-instrument threshold; if the number of candidates <= selcetnum, select only the strongest one;
+  #             if the number of candidates > selcetnum, keep several instruments
+  #   "multi" : full multiple-instrument mode; keep all selected variables
   if (!(is.numeric(selcetnum) || selcetnum == "multi")) {
     stop("selcetnum must be 1, a positive integer, or 'multi'.")
   }
@@ -1022,27 +1022,27 @@ variable_selection_sorted <- function(N_center,
   
   all_final_vars <- list()
   
-  ## 1. 根据 type 设置 P 值阈值
+  ## 1. set the P-value threshold by type
   
   if (type == 1) {
-    # 连续型：Bonferroni 校正
+    # continuous: Bonferroni correction
     p_cutoff <- 0.05 / length(covariates)
   } else {
-    # 二分类：阈值 0.1
+    # binary: threshold 0.1
     p_cutoff <- 0.1
   }
   
-  ## 对每个中心分别筛选变量
+  ## select variables separately in each center
   for (i in 1:N_center) {
     
-    ## 2.1 提取第 i 个中心的数据
+    ## 2.1 extract the data of center i
     data_i <- data$all_data[
       data$all_data$centre == i,
       ,
       drop = FALSE
     ]
     
-    # 只保留当前中心和 RCT 中都存在的候选变量
+    # keep only candidate variables present in both the current center and the RCT
     covariates_i <- covariates[
       covariates %in% colnames(data_i) &
         covariates %in% colnames(data$rct)
@@ -1056,7 +1056,7 @@ variable_selection_sorted <- function(N_center,
     p_value_Y <- rep(NA_real_, length(covariates_i))
     p_value_X <- rep(NA_real_, length(covariates_i))
     
-    ## 2.2 初筛：同时与 Y 和 X 相关
+    ## 2.2 initial selection: associated with both Y and X
     
     for (j in seq_along(covariates_i)) {
       
@@ -1087,17 +1087,17 @@ variable_selection_sorted <- function(N_center,
       )
     }
     
-    # 与 Y 显著相关的变量
+    # variables significantly associated with Y
     varable1 <- covariates_i[
       which(!is.na(p_value_Y) & p_value_Y < p_cutoff)
     ]
     
-    # 与 X 显著相关的变量
+    # variables significantly associated with X
     varable2 <- covariates_i[
       which(!is.na(p_value_X) & p_value_X < p_cutoff)
     ]
     
-    # 同时与 Y 和 X 相关的变量
+    # variables associated with both Y and X
     common_variables <- intersect(varable1, varable2)
     
     if (length(common_variables) == 0) {
@@ -1107,10 +1107,10 @@ variable_selection_sorted <- function(N_center,
     
     final_vars <- common_variables
     
-    ## 2.3 处理高度相关变量
+    ## 2.3 handle highly correlated variables
     ##
-    ## 如果两个变量之间相关性超过 correlation_threshold，
-    ## 则保留与 X 相关性更强的那个。
+    ## if the correlation between two variables exceeds correlation_threshold,
+    ## then keep the one more strongly correlated with X.
     
     if (length(common_variables) > 1) {
       
@@ -1152,7 +1152,7 @@ variable_selection_sorted <- function(N_center,
       final_vars <- setdiff(common_variables, vars_to_remove)
     }
     
-    ## 2.4 按与 X 的绝对相关性从大到小排序
+    ## 2.4 sort by absolute correlation with X in decreasing order
     if (length(final_vars) > 1) {
       
       correlations_with_X <- sapply(final_vars, function(var) {
@@ -1165,24 +1165,24 @@ variable_selection_sorted <- function(N_center,
     }
     
     
-    ## 2.5 只保留 RCT 数据中也存在的变量
+    ## 2.5 keep only variables also present in the RCT data
     
     final_vars_end <- final_vars[
       final_vars %in% colnames(data$rct)
     ]
     
     ########################################################
-    ## 2.6 根据 selcetnum 控制选择 1 个还是多个
+    ## 2.6 use selcetnum to choose one or several
     ##
-    ## selcetnum = 1：
-    ##   始终只选最强的 1 个工具变量。
+    ## selcetnum = 1:
+    ##   always select only the strongest instrument.
     ##
-    ## selcetnum = 5：
-    ##   如果筛选后工具变量数 <= 5，则只选最强 1 个；
-    ##   如果筛选后工具变量数 > 5，则保留多个工具变量。
+    ## selcetnum = 5:
+    ##   if the number of selected instruments <= 5, select only the strongest one;
+    ##   if the number of selected instruments > 5, keep several instruments.
     ##
-    ## selcetnum = "multi"：
-    ##   完全多工具模式，筛出多少个就保留多少个。
+    ## selcetnum = "multi":
+    ##   full multiple-instrument mode; keep all selected variables.
     ########################################################
     
     if (length(final_vars_end) > 0) {
@@ -1191,14 +1191,14 @@ variable_selection_sorted <- function(N_center,
         
         if (selcetnum == 1) {
           
-          # 单工具模式：只选最强的 1 个
+          # single-instrument mode: select only the strongest one
           final_vars_end <- final_vars_end[1]
           
         } else if (selcetnum > 1) {
           
-          # 多工具门槛模式：
-          # 如果候选工具数 <= selcetnum，则退回最强单工具；
-          # 如果候选工具数 > selcetnum，则保留多个工具。
+          # multiple-instrument threshold mode:
+          # if the number of candidate instruments <= selcetnum, fall back to the strongest single instrument;
+          # if the number of candidate instruments > selcetnum, keep several instruments.
           if (length(final_vars_end) <= selcetnum) {
             final_vars_end <- final_vars_end[1]
           } else {
@@ -1208,7 +1208,7 @@ variable_selection_sorted <- function(N_center,
         
       } else if (selcetnum == "multi") {
         
-        # 完全多工具模式：不设门槛
+        # full multiple-instrument mode: no threshold
         final_vars_end <- final_vars_end
       }
     }
@@ -1222,7 +1222,7 @@ variable_selection_sorted <- function(N_center,
 
 
 
-## RCT 中多个工具变量 Y ~ Z 斜率的协方差矩阵
+## covariance matrix of the Y ~ Z slopes of several instruments in the RCT
 
 rct_slope_vcov <- function(data_rct, iv_names) {
   
@@ -1279,7 +1279,7 @@ rct_slope_vcov <- function(data_rct, iv_names) {
     res <- resid(fit)
     
     # beta_hat - beta ≈ sum_i (z_i - zbar) * e_i / Sxx
-    # 所以每个样本的影响贡献为：
+    # so the influence contribution of each observation is:
     IF_mat[, j] <- z_centered * res / Sxx
   }
   
@@ -1301,8 +1301,8 @@ rct_slope_vcov <- function(data_rct, iv_names) {
   ))
 }
 
-## 观察性中心中 X ~ Z 与 Y ~ Z 斜率的影响函数
-## 每列对应一个工具变量；crossprod() 给出斜率估计的方差和协方差
+## influence functions of the X ~ Z and Y ~ Z slopes in observational centers
+## each column corresponds to one instrument; crossprod() gives the variances and covariances of the slope estimates
 
 ob_slope_if <- function(data_OB, iv_names) {
 
@@ -1354,11 +1354,11 @@ ratio_se_delta <- function(betaYG, betaXG, SEYG, SEXG, cov_YX = 0) {
   return(sqrt(max(var_ratio, 0)))
 }
 
-## 单中心 Wald ratio 估计：返回协方差 Meta 所需信息
+## single-center Wald ratio estimate: returns the information needed by the covariance meta-analysis
 
 ############################################################
-## 单中心单工具 Wald ratio 估计
-## 返回共享 RCT 协方差 Meta 所需信息 + 工具诊断信息
+## single-center single-instrument Wald ratio estimate
+## return the information needed by the shared-RCT covariance meta-analysis + instrument diagnostics
 ############################################################
 
 CON_IV_luo_top1_return <- function(data_rct_all,
@@ -1367,7 +1367,7 @@ CON_IV_luo_top1_return <- function(data_rct_all,
                                    rct_info) {
   
   ##########################################################
-  ## 内部空结果函数：保证所有失败返回列名一致
+  ## internal empty-result function: keep column names consistent for all failures
   ##########################################################
   
   empty_result <- function(IV_name = NA_character_,
@@ -1405,7 +1405,7 @@ CON_IV_luo_top1_return <- function(data_rct_all,
   n_OB <- nrow(data_OB)
   
   ##########################################################
-  ## 0. 无工具变量时返回 NA
+  ## 0. return NA when there is no instrument
   ##########################################################
   
   if (length(IV_covariates) == 0) {
@@ -1416,7 +1416,7 @@ CON_IV_luo_top1_return <- function(data_rct_all,
   }
   
   ##########################################################
-  ## 1. 单工具版本只取第一个工具变量
+  ## 1. the single-instrument version takes only the first instrument
   ##########################################################
   
   IV_name <- IV_covariates[1]
@@ -1432,7 +1432,7 @@ CON_IV_luo_top1_return <- function(data_rct_all,
   }
   
   ##########################################################
-  ## 2. 观察性中心中估计 X ~ Z
+  ## 2. estimate X ~ Z in observational centers
   ##########################################################
   
   tmp_x <- data.frame(
@@ -1490,7 +1490,7 @@ CON_IV_luo_top1_return <- function(data_rct_all,
   F_XZ <- (betaXG / SEXG)^2
   
   ##########################################################
-  ## 3. 观察性中心中估计 Y ~ Z
+  ## 3. estimate Y ~ Z in observational centers
   ##########################################################
   
   tmp_y <- data.frame(
@@ -1548,7 +1548,7 @@ CON_IV_luo_top1_return <- function(data_rct_all,
   }
   
   ##########################################################
-  ## 4. RCT / do 数据中对应的 Y ~ Z 斜率和方差
+  ## 4. corresponding Y ~ Z slopes and variances in the RCT / do data
   ##########################################################
   
   betaY_RCT <- rct_info$beta[IV_name]
@@ -1580,8 +1580,8 @@ CON_IV_luo_top1_return <- function(data_rct_all,
   betaYG <- betaY_OB - betaY_RCT
   betaXY <- betaYG / betaXG
 
-  ## 观察性中心两个斜率的方差及其协方差（影响函数），
-  ## 与共享 RCT 斜率的方差一起进入 delta 方法
+  ## variances and covariance of the two slopes in an observational center (influence functions),
+  ## enters the delta method together with the variance of the shared RCT slopes
   ob_if <- ob_slope_if(data_OB, IV_name)
   varY_OB  <- sum(ob_if$IF_y[, 1]^2)
   varX_OB  <- sum(ob_if$IF_x[, 1]^2)
@@ -1612,7 +1612,7 @@ CON_IV_luo_top1_return <- function(data_rct_all,
   }
   
   ##########################################################
-  ## 6. 返回单中心结果
+  ## 6. return single-center results
   ##########################################################
   
   return(data.frame(
@@ -1644,16 +1644,16 @@ CON_IV_luo_top1_return <- function(data_rct_all,
 
 
 ############################################################
-## 单工具共享 RCT 协方差矩阵 Meta
+## single-instrument meta-analysis with the shared RCT covariance matrix
 ##
-## 用于：
+## used for:
 ##   ALLCONIV_cov()
 ##
-## 方法：
-##   1. 用固定效应 GLS 得到合并估计和 SE，与 meta_function_MR_cov_multi() 相同；
-##   2. p 值和 95% CI 用 t 分布；
-##   3. 自由度 df = 有效中心数 K - 1；
-##   4. 与多工具 meta_function_MR_cov_multi() 保持一致。
+## methods:
+##   1. obtain the combined estimate and SE by fixed-effect GLS, as in meta_function_MR_cov_multi();
+##   2. p values and 95% CIs use the t distribution;
+##   3. degrees of freedom df = number of valid centers K - 1;
+##   4. consistent with the multiple-instrument meta_function_MR_cov_multi().
 ############################################################
 
 meta_function_MR_cov <- function(MR_result_all,
@@ -1677,7 +1677,7 @@ meta_function_MR_cov <- function(MR_result_all,
   }
   
   ##########################################################
-  ## 1. 过滤无效中心
+  ## 1. filter out invalid centers
   ##########################################################
   
   MR_result_all <- MR_result_all[
@@ -1706,7 +1706,7 @@ meta_function_MR_cov <- function(MR_result_all,
   K <- nrow(MR_result_all)
   
   ##########################################################
-  ## 2. 构造协方差矩阵 V
+  ## 2. construct the covariance matrix V
   ##########################################################
   
   V <- matrix(
@@ -1734,7 +1734,7 @@ meta_function_MR_cov <- function(MR_result_all,
   }
   
   ##########################################################
-  ## 3. 数值保护：如果 V 非正定，做 nearPD 修正
+  ## 3. numerical safeguard: apply nearPD if V is not positive definite
   ##########################################################
   
   if (use_nearPD) {
@@ -1768,7 +1768,7 @@ meta_function_MR_cov <- function(MR_result_all,
   }
   
   ##########################################################
-  ## 4. 固定效应 GLS 合并（与 meta_function_MR_cov_multi() 相同）
+  ## 4. fixed-effect GLS combination (same as meta_function_MR_cov_multi())
   ##
   ## beta_meta = (1' V^{-1} 1)^(-1) 1' V^{-1} b
   ##########################################################
@@ -1822,7 +1822,7 @@ meta_function_MR_cov <- function(MR_result_all,
   stat_value <- estimate / meta_se
   
   ##########################################################
-  ## 6. t 分布修正
+  ## 6. t-distribution correction
   ##########################################################
   
   if (use_t_correction) {
@@ -1857,7 +1857,7 @@ meta_function_MR_cov <- function(MR_result_all,
   }
   
   ##########################################################
-  ## 7. 最终结果
+  ## 7. final results
   ##########################################################
   
   final_result <- c(
@@ -1882,8 +1882,8 @@ meta_function_MR_cov <- function(MR_result_all,
 
 
 
-## 多工具中心内 IVW 估计
-## 返回多工具协方差 Meta 所需的信息
+## within-center multiple-instrument IVW estimate
+## return the information needed by the multiple-instrument covariance meta-analysis
 
 
 CON_IV_luo_multi_return <- function(data_OB,
@@ -1911,7 +1911,7 @@ CON_IV_luo_multi_return <- function(data_OB,
   }
   
   
-  ## 0. 基本检查
+  ## 0. basic checks
   
   if (length(IV_covariates) == 0) {
     return(empty_result())
@@ -1931,10 +1931,10 @@ CON_IV_luo_multi_return <- function(data_OB,
   }
   
   
-  ## 1. 对每个工具分别估计：
+  ## 1. estimate each instrument separately:
   ##    X ~ Z
   ##    Y_OB ~ Z
-  ##    RCT 中 Y_RCT ~ Z 的结果来自 rct_info
+  ##    the Y_RCT ~ Z results in the RCT come from rct_info
   
   iv_result <- data.frame(
     IV_name = character(0),
@@ -1995,13 +1995,13 @@ CON_IV_luo_multi_return <- function(data_OB,
     SEY_OB <- sy["Z", "Std. Error"]
     
     
-    ## RCT 中 Y ~ Z
+    ## Y ~ Z in the RCT
     
     betaY_RCT <- rct_info$beta[iv_j]
     varY_RCT <- rct_info$vcov[iv_j, iv_j]
     
     
-    ## 保存
+    ## save
     
     iv_result <- rbind(
       iv_result,
@@ -2023,7 +2023,7 @@ CON_IV_luo_multi_return <- function(data_OB,
   }
   
   
-  ## 2. 过滤无效工具
+  ## 2. filter out invalid instruments
   
   
   keep <- is.finite(iv_result$betaXG) &
@@ -2044,7 +2044,7 @@ CON_IV_luo_multi_return <- function(data_OB,
   }
   
   
-  ## 3. 多工具 IVW 估计
+  ## 3. multiple-instrument IVW estimate
   ##
   ## betaYG_j = betaY_OB_j - betaY_RCT_j
   ##
@@ -2074,7 +2074,7 @@ CON_IV_luo_multi_return <- function(data_OB,
   betaXY <- sum(w * betaXG * betaYG) / denom
   
   
-  ## 4. 计算该中心估计量对 betaYG_j 的线性权重
+  ## 4. compute the linear weights of this center's estimator on betaYG_j
   ##
   ## theta_i = sum_j a_ij * betaYG_ij
   ##
@@ -2085,12 +2085,12 @@ CON_IV_luo_multi_return <- function(data_OB,
   names(a_vec) <- iv_result$IV_name
   
   
-  ## 5. 方差
+  ## 5. variance
   ##
-  ## obs_y_var: 观察性中心 Y~Z 斜率，含不同工具之间的协方差
-  ## rct_var:   共享 RCT 中 Y~Z 斜率，含不同工具之间的协方差
-  ## x_var:     观察性中心 X~Z 斜率，含不同工具之间的协方差
-  ## yx_cov:    同一观察性中心中 Y~Z 与 X~Z 斜率之间的协方差
+  ## obs_y_var: Y~Z slopes in an observational center, including covariances between instruments
+  ## rct_var:   Y~Z slopes in the shared RCT, including covariances between instruments
+  ## x_var:     X~Z slopes in an observational center, including covariances between instruments
+  ## yx_cov:    covariance between the Y~Z and X~Z slopes within the same observational center
 
   ob_if <- ob_slope_if(data_OB, iv_result$IV_name)
 
@@ -2114,7 +2114,7 @@ CON_IV_luo_multi_return <- function(data_OB,
     t(a_vec) %*% rct_sub_vcov %*% a_vec
   )
 
-  ## betaXY 对 betaXG_j 的导数
+  ## derivative of betaXY with respect to betaXG_j
   d_x <- w * (betaYG - 2 * betaXG * betaXY) / denom
 
   x_var <- as.numeric(t(d_x) %*% V_xx %*% d_x)
@@ -2147,11 +2147,11 @@ CON_IV_luo_multi_return <- function(data_OB,
 
 
 ############################################################
-## 多工具共享 RCT 协方差矩阵 Meta
+## multiple-instrument meta-analysis with the shared RCT covariance matrix
 ############################################################
 
 ############################################################
-## 多工具共享 RCT 协方差矩阵 Meta
+## multiple-instrument meta-analysis with the shared RCT covariance matrix
 ############################################################
 
 meta_function_MR_cov_multi <- function(center_result_list,
@@ -2160,7 +2160,7 @@ meta_function_MR_cov_multi <- function(center_result_list,
                                        use_t_correction = TRUE) {
   
   ##########################################################
-  ## 1. 提取有效中心
+  ## 1. extract valid centers
   ##########################################################
   
   valid_idx <- which(sapply(center_result_list, function(x) {
@@ -2192,15 +2192,15 @@ meta_function_MR_cov_multi <- function(center_result_list,
   center_original <- sapply(valid_results, function(x) x$center_id)
   
   ##########################################################
-  ## 2. 构造中心间协方差矩阵 V
+  ## 2. construct the between-center covariance matrix V
   ##########################################################
   
   V <- matrix(0, nrow = K, ncol = K)
   
-  ## 对角线：每个中心自身估计方差
+  ## diagonal: variance of each center's own estimate
   diag(V) <- se^2
   
-  ## 非对角线：共享 RCT 参照误差导致的中心间协方差
+  ## off-diagonal: between-center covariance due to shared RCT reference error
   for (i in 1:K) {
     for (j in 1:K) {
       
@@ -2236,7 +2236,7 @@ meta_function_MR_cov_multi <- function(center_result_list,
   }
   
   ##########################################################
-  ## 3. 数值保护：如果 V 非正定，做 nearPD 修正
+  ## 3. numerical safeguard: apply nearPD if V is not positive definite
   ##########################################################
   
   if (use_nearPD) {
@@ -2259,7 +2259,7 @@ meta_function_MR_cov_multi <- function(center_result_list,
   }
   
   ##########################################################
-  ## 4. 固定效应 GLS 合并
+  ## 4. fixed-effect GLS combination
   ##
   ## beta_meta = (1' V^{-1} 1)^(-1) 1' V^{-1} b
   ##########################################################
@@ -2306,7 +2306,7 @@ meta_function_MR_cov_multi <- function(center_result_list,
   }
   
   ##########################################################
-  ## 5. 小样本 t 分布修正
+  ## 5. small-sample t-distribution correction
   ##
   ##   df = K - 1
   ##   p_value = 2 * pt(-abs(t), df)
@@ -2347,10 +2347,10 @@ meta_function_MR_cov_multi <- function(center_result_list,
   }
   
   ##########################################################
-  ## 6. 最终结果
+  ## 6. final results
   ##
-  ## 第三个元素命名为 z_value；
-  ## use_t_correction = TRUE 时它是 t 统计量。
+  ## the third element is named z_value;
+  ## it is a t statistic when use_t_correction = TRUE.
   ##########################################################
   
   final_result <- c(
@@ -2363,7 +2363,7 @@ meta_function_MR_cov_multi <- function(center_result_list,
   )
   
   ##########################################################
-  ## 7. 整理中心结果
+  ## 7. organize center results
   ##########################################################
   
   center_result <- data.frame(
@@ -2391,7 +2391,7 @@ meta_function_MR_cov_multi <- function(center_result_list,
 
 
 ############################################################
-## 多中心多工具 + 共享 RCT 协方差矩阵 Meta
+## multicenter multiple instruments + meta-analysis with the shared RCT covariance matrix
 ############################################################
 
 ALLCONIV_cov_multi <- function(ALLdata,
@@ -2401,7 +2401,7 @@ ALLCONIV_cov_multi <- function(ALLdata,
                                n_boot = NULL) {
   
   ##########################################################
-  ## 0. 当前版本先只支持连续型 type = 1
+  ## 0. this version currently supports only continuous type = 1
   ##########################################################
   
   if (type != 1) {
@@ -2409,7 +2409,7 @@ ALLCONIV_cov_multi <- function(ALLdata,
   }
   
   ##########################################################
-  ## 1. 收集所有中心使用的所有工具变量
+  ## 1. collect all instruments used by all centers
   ##########################################################
   
   all_selected_IVs <- character(0)
@@ -2438,7 +2438,7 @@ ALLCONIV_cov_multi <- function(ALLdata,
   }
   
   ##########################################################
-  ## 2. 在 RCT 中估计所有工具的 Y~Z 斜率协方差矩阵
+  ## 2. estimate the covariance matrix of the Y~Z slopes of all instruments in the RCT
   ##########################################################
   
   rct_info <- rct_slope_vcov(
@@ -2447,7 +2447,7 @@ ALLCONIV_cov_multi <- function(ALLdata,
   )
   
   ##########################################################
-  ## 3. 每个中心做多工具 IVW 估计
+  ## 3. multiple-instrument IVW estimate in each center
   ##########################################################
   
   center_result_list <- vector("list", N_center)
@@ -2471,7 +2471,7 @@ ALLCONIV_cov_multi <- function(ALLdata,
   }
   
   ##########################################################
-  ## 4. 多工具协方差矩阵 Meta
+  ## 4. multiple-instrument covariance-matrix meta-analysis
   ##########################################################
   
   final_meta <- meta_function_MR_cov_multi(
@@ -2489,11 +2489,11 @@ ALLCONIV_cov_multi <- function(ALLdata,
 
 
 ############################################################
-## 1. 模拟结果汇总函数
+## 1. simulation result summary function
 ############################################################
-## 模拟结果汇总函数
+## simulation result summary function
 ##
-## 汇总：
+## summary:
 ##   estimate
 ##   bias
 ##   emp_se
@@ -2504,20 +2504,20 @@ ALLCONIV_cov_multi <- function(ALLdata,
 ##   valid_rate
 ##   n_valid
 ##
-## 假设检验：
+## hypothesis test:
 ##   H0: causal effect = null_value
-##   默认 null_value = 0, alpha = 0.05
+##   defaults null_value = 0, alpha = 0.05
 ##
 ##   reject_rate:
 ##     P(p_value < alpha)
 ##
 ##   type1_error:
-##     当 true_effect = null_value 时，type1_error = reject_rate
+##     when true_effect = null_value, type1_error = reject_rate
 ##
 ##   power:
-##     当 true_effect != null_value 时，power = reject_rate
+##     when true_effect != null_value, power = reject_rate
 ##
-## 工具变量个数：
+## number of instruments:
 ##   selected_mean_iv_count
 ##   selected_median_iv_count
 ##   selected_min_iv_count
@@ -2572,7 +2572,7 @@ resultt_FUn <- function(result,
   }
   
   ##########################################################
-  ## 1. 提取估计值和模型标准误
+  ## 1. extract estimates and model standard errors
   ##########################################################
   
   est <- as.numeric(result[, 1])
@@ -2581,7 +2581,7 @@ resultt_FUn <- function(result,
   valid <- is.finite(est)
   
   ##########################################################
-  ## 如果没有有效估计，也尽量保留工具变量个数信息
+  ## keep the instrument counts even when there is no valid estimate
   ##########################################################
   
   if (sum(valid, na.rm = TRUE) == 0) {
@@ -2607,7 +2607,7 @@ resultt_FUn <- function(result,
   est_valid <- est[valid]
   
   ##########################################################
-  ## 2. 估计值、Bias、经验 SE、MSE
+  ## 2. estimate, bias, empirical SE, and MSE
   ##########################################################
   
   estimate <- mean(est_valid, na.rm = TRUE)
@@ -2620,7 +2620,7 @@ resultt_FUn <- function(result,
   )
   
   ##########################################################
-  ## 3. 模型 SE 与经验 SE 比值
+  ## 3. ratio of model SE to empirical SE
   ##########################################################
   
   valid_se <- valid &
@@ -2645,7 +2645,7 @@ resultt_FUn <- function(result,
   }
   
   ##########################################################
-  ## 4. Coverage：置信区间覆盖真实效应 true_effect
+  ## 4. Coverage: whether the confidence interval covers true_effect
   ##########################################################
   
   if (ncol(result) >= 6) {
@@ -2667,10 +2667,10 @@ resultt_FUn <- function(result,
   }
   
   ##########################################################
-  ## 5. 假设检验：H0: effect = null_value
+  ## 5. hypothesis test: H0: effect = null_value
   ##
-  ## 当前 extract_final_result() 第 4 列是 p_value。
-  ## 如果 p_value 不可用，则用 CI 是否排除 null_value 作为替代。
+  ## in the current extract_final_result(), column 4 is p_value.
+  ## if p_value is unavailable, use whether the CI excludes null_value instead.
   ##########################################################
   
   p_value <- if (ncol(result) >= 4) {
@@ -2721,7 +2721,7 @@ resultt_FUn <- function(result,
   }
   
   ##########################################################
-  ## 6. I 类错误和 Power
+  ## 6. type I error and power
   ##########################################################
   
   if (is.finite(true_effect) &&
@@ -2737,14 +2737,14 @@ resultt_FUn <- function(result,
   }
   
   ##########################################################
-  ## 7. 有效率
+  ## 7. success rate
   ##########################################################
   
   valid_rate <- mean(valid, na.rm = TRUE)
   n_valid <- sum(valid, na.rm = TRUE)
   
   ##########################################################
-  ## 8. 工具变量个数汇总
+  ## 8. instrument count summary
   ##########################################################
   
   get_mean_col <- function(colname) {
@@ -2775,7 +2775,7 @@ resultt_FUn <- function(result,
   used_max_iv_count <- get_mean_col("used_max_iv_count")
   
   ##########################################################
-  ## 9. 返回
+  ## 9. return
   ##########################################################
   
   return(c(
@@ -2807,14 +2807,14 @@ resultt_FUn <- function(result,
 }
 
 ############################################################
-## 最大样本量中心筛选统一工具变量
-## 所有中心使用同一组工具
+## select a common instrument set in the largest center
+## all centers use the same instrument set
 ##
-## 要求：
-##   1. 工具变量在最大样本量中心中筛选；
-##   2. 工具变量必须在所有观察性中心中存在；
-##   3. 工具变量必须在 RCT 数据中存在；
-##   4. 可用于单工具或多工具。
+## requirements:
+##   1. instruments are selected in the center with the largest sample size;
+##   2. instruments must be present in all observational centers;
+##   3. instruments must be present in the RCT data;
+##   4. usable for single or multiple instruments.
 ############################################################
 
 variable_selection_largest_center_common <- function(N_center,
@@ -2825,7 +2825,7 @@ variable_selection_largest_center_common <- function(N_center,
                                                      selcetnum = "multi") {
   
   ##########################################################
-  ## 0. 基本检查
+  ## 0. basic checks
   ##########################################################
   
   if (length(covariates) == 0) {
@@ -2853,7 +2853,7 @@ variable_selection_largest_center_common <- function(N_center,
   }
   
   ##########################################################
-  ## 1. 找到样本量最大的观察性中心
+  ## 1. find the observational center with the largest sample size
   ##########################################################
   
   center_sizes <- sapply(1:N_center, function(cen) {
@@ -2869,7 +2869,7 @@ variable_selection_largest_center_common <- function(N_center,
   ]
   
   ##########################################################
-  ## 2. 只保留所有观察性中心和 RCT 中都能观测到的候选变量
+  ## 2. keep only candidate variables observed in all observational centers and the RCT
   ##########################################################
   
   center_col_list <- lapply(1:N_center, function(cen) {
@@ -2907,7 +2907,7 @@ variable_selection_largest_center_common <- function(N_center,
   }
   
   ##########################################################
-  ## 3. 设置筛选 P 值阈值
+  ## 3. set the P-value threshold for selection
   ##########################################################
   
   if (type == 1) {
@@ -2917,7 +2917,7 @@ variable_selection_largest_center_common <- function(N_center,
   }
   
   ##########################################################
-  ## 4. 在最大样本量中心中进行工具筛选
+  ## 4. select instruments in the center with the largest sample size
   ##########################################################
   
   p_value_Y <- rep(NA_real_, length(covariates_common))
@@ -2969,8 +2969,8 @@ variable_selection_largest_center_common <- function(N_center,
     selected_vars <- common_variables
     
     ########################################################
-    ## 5. 去除高度相关的冗余工具变量
-    ##    如果两个变量高度相关，保留与 X 相关性更强的变量
+    ## 5. remove highly correlated redundant instruments
+    ##    if two variables are highly correlated, keep the one more strongly correlated with X
     ########################################################
     
     if (length(common_variables) > 1) {
@@ -3014,7 +3014,7 @@ variable_selection_largest_center_common <- function(N_center,
     }
     
     ########################################################
-    ## 6. 按与 X 的绝对相关性从大到小排序
+    ## 6. sort by absolute correlation with X in decreasing order
     ########################################################
     
     if (length(selected_vars) > 1) {
@@ -3029,7 +3029,7 @@ variable_selection_largest_center_common <- function(N_center,
     }
     
     ########################################################
-    ## 7. 再次保证工具在所有中心和 RCT 中均存在
+    ## 7. ensure again that instruments are present in all centers and the RCT
     ########################################################
     
     selected_vars <- selected_vars[
@@ -3037,7 +3037,7 @@ variable_selection_largest_center_common <- function(N_center,
     ]
     
     ########################################################
-    ## 8. 根据 selcetnum 控制单工具或多工具
+    ## 8. use selcetnum to choose single or multiple instruments
     ########################################################
     
     if (length(selected_vars) > 0) {
@@ -3065,7 +3065,7 @@ variable_selection_largest_center_common <- function(N_center,
   }
   
   ##########################################################
-  ## 9. 所有中心使用同一组工具变量
+  ## 9. all centers use the same instrument set
   ##########################################################
   
   all_final_vars <- list()
@@ -3085,15 +3085,15 @@ variable_selection_largest_center_common <- function(N_center,
 
 
 ############################################################
-## 单工具 + 共享 RCT 协方差矩阵 Meta
+## single instrument + meta-analysis with the shared RCT covariance matrix
 ##
-## 适用于：
-##   1. 单工具 + 同一工具
-##   2. 单工具 + 不同中心不同工具
+## applies to:
+##   1. single instrument + the same instrument
+##   2. single instrument + different instruments across centers
 ##
-## 注意：
-##   如果 covariates 中某中心有多个候选工具，
-##   本函数只取第 1 个，即最强工具。
+## note:
+##   if a center has several candidate instruments in covariates,
+##   this function takes only the first one, i.e., the strongest instrument.
 ############################################################
 
 ALLCONIV_cov <- function(ALLdata,
@@ -3103,7 +3103,7 @@ ALLCONIV_cov <- function(ALLdata,
                          n_boot = NULL) {
   
   ##########################################################
-  ## 0. 当前版本只支持连续型 type = 1
+  ## 0. this version supports only continuous type = 1
   ##########################################################
   
   if (type != 1) {
@@ -3111,7 +3111,7 @@ ALLCONIV_cov <- function(ALLdata,
   }
   
   ##########################################################
-  ## 1. 提取变量筛选信息
+  ## 1. extract variable selection information
   ##########################################################
   
   largest_center <- attr(covariates, "largest_center")
@@ -3136,8 +3136,8 @@ ALLCONIV_cov <- function(ALLdata,
   }
   
   ##########################################################
-  ## 2. 收集所有中心实际使用的工具变量
-  ##    单工具版本：每个中心只取第一个工具
+  ## 2. collect the instruments actually used by all centers
+  ##    single-instrument version: each center takes only the first instrument
   ##########################################################
   
   center_iv_map <- data.frame(
@@ -3176,7 +3176,7 @@ ALLCONIV_cov <- function(ALLdata,
   ]
   
   ##########################################################
-  ## 3. 如果没有有效工具变量，直接返回空结果
+  ## 3. if there is no valid instrument, return an empty result directly
   ##########################################################
   
   if (length(all_selected_IVs) == 0) {
@@ -3221,7 +3221,7 @@ ALLCONIV_cov <- function(ALLdata,
   }
   
   ##########################################################
-  ## 4. 在 RCT / do 数据中估计 Y ~ Z 斜率协方差矩阵
+  ## 4. estimate the covariance matrix of the Y ~ Z slopes in the RCT / do data
   ##########################################################
   
   rct_info <- try(
@@ -3274,7 +3274,7 @@ ALLCONIV_cov <- function(ALLdata,
   }
   
   ##########################################################
-  ## 5. 每个中心计算单工具 Wald ratio
+  ## 5. single-instrument Wald ratio in each center
   ##########################################################
   
   center_result_list <- vector("list", N_center)
@@ -3306,7 +3306,7 @@ ALLCONIV_cov <- function(ALLdata,
   MR_result_all <- do.call(rbind, center_result_list)
   
   ##########################################################
-  ## 6. 带共享 RCT 协方差矩阵的 Meta 合并
+  ## 6. meta-analysis combination with the shared RCT covariance matrix
   ##########################################################
   
   final_meta <- meta_function_MR_cov(
@@ -3315,7 +3315,7 @@ ALLCONIV_cov <- function(ALLdata,
   )
   
   ##########################################################
-  ## 7. 汇总工具变量诊断信息
+  ## 7. summarize instrument diagnostics
   ##########################################################
   
   valid_center <- is.finite(MR_result_all$b) &
@@ -3368,7 +3368,7 @@ ALLCONIV_cov <- function(ALLdata,
   )
   
   ##########################################################
-  ## 8. 附加信息后返回
+  ## 8. return with additional information
   ##########################################################
   
   final_meta$rct_info <- rct_info
@@ -3468,10 +3468,10 @@ meta_function_MR <- function(MR_result_all) {
   ))
 }
 
-## 传统观察性方法变量筛选函数##############
-## out = "both" : 同时与 X 和 Y 相关
-## out = "X"    : 只筛与 X 相关的变量
-## out = "Y"    : 只筛与 Y 相关的变量
+## variable selection function for conventional observational methods ##############
+## out = "both" : associated with both X and Y
+## out = "X"    : select only variables associated with X
+## out = "Y"    : select only variables associated with Y
 
 
 Select_other <- function(data,
@@ -3612,8 +3612,8 @@ Select_other <- function(data,
 
 
 
-## 传统观察性回归调整############
-## 每个中心单独调整，然后 meta 合并############
+## conventional observational regression adjustment ############
+## adjust separately in each center, then combine by meta-analysis ############
 
 
 ALL_adjust <- function(ALLdata,
@@ -3706,8 +3706,8 @@ ALL_adjust <- function(ALLdata,
 }
 
 
-## 连续暴露 GPS adjustment###############
-## 注意：这不是 PSM，而是 GPS 预测均值调整
+## continuous exposure GPS adjustment ###############
+## note: this is not PSM but GPS predicted-mean adjustment
 
 ALL_GPS_adjust <- function(ALLdata,
                            N_center,
@@ -3743,7 +3743,7 @@ ALL_GPS_adjust <- function(ALLdata,
     }
     
     
-    ## 1. 暴露模型：X ~ covariates
+    ## 1. exposure model: X ~ covariates
     
     formula_gps <- reformulate(
       termlabels = cov_cen,
@@ -3762,7 +3762,7 @@ ALL_GPS_adjust <- function(ALLdata,
     data_OB_i$gps_mu <- as.numeric(predict(model_gps))
     
     
-    ## 2. 结局模型：Y ~ X + gps_mu
+    ## 2. outcome model: Y ~ X + gps_mu
     
     model_y <- try(
       lm(Y ~ X + gps_mu, data = data_OB_i),
@@ -3808,16 +3808,16 @@ ALL_GPS_adjust <- function(ALLdata,
 }
 
 
-## 二分类暴露的 stabilized IPTW#############
+## stabilized IPTW for a binary exposure #############
 ##
-## exposure    : 暴露变量名，例如 "X"
-## denominator : 分母模型公式，例如 X ~ C1 + C2 + L1_1
-## data        : 当前中心数据
-## trim        : 权重截尾比例，默认 0.01；如果不想截尾，可设为 NULL 或 0
-## eps         : 概率截断，避免预测概率为 0 或 1
+## exposure    : exposure variable name, e.g., "X"
+## denominator : denominator model formula, e.g., X ~ C1 + C2 + L1_1
+## data        : data of the current center
+## trim        : weight truncation proportion, default 0.01; set to NULL or 0 for no truncation
+## eps         : probability truncation to avoid predicted probabilities of 0 or 1
 ##
-## 返回：
-##   与 data 行数相同的 stabilized IPTW 权重
+## returns:
+##   stabilized IPTW weights, same length as data
 
 
 ipw_mew_cat <- function(exposure,
@@ -3827,7 +3827,7 @@ ipw_mew_cat <- function(exposure,
                         eps = 1e-6) {
   
   
-  ## 0. 基本检查
+  ## 0. basic checks
   
   if (!exposure %in% colnames(data)) {
     stop("exposure is not found in data.")
@@ -3835,7 +3835,7 @@ ipw_mew_cat <- function(exposure,
   
   A <- data[[exposure]]
   
-  ## 当前函数只用于二分类 0/1 暴露
+  ## this function is only for a binary 0/1 exposure
   valid_A <- A[!is.na(A)]
   
   if (!all(valid_A %in% c(0, 1))) {
@@ -3850,7 +3850,7 @@ ipw_mew_cat <- function(exposure,
   
   
   ## 1. Numerator model: P(A)
-  ##    稳定权重分子，只包含截距项
+  ##    numerator of the stabilized weight, intercept only
   
   formula_num <- as.formula(
     paste(exposure, "~ 1")
@@ -3908,7 +3908,7 @@ ipw_mew_cat <- function(exposure,
   p_den <- pmin(pmax(as.numeric(p_den), eps), 1 - eps)
   
   
-  ## 3. 计算 stabilized IPTW
+  ## 3. compute stabilized IPTW
   ##
   ## A = 1: numerator = P(A=1), denominator = P(A=1 | C)
   ## A = 0: numerator = P(A=0), denominator = P(A=0 | C)
@@ -3922,7 +3922,7 @@ ipw_mew_cat <- function(exposure,
   weights[!is.finite(weights)] <- NA_real_
   
   
-  ## 4. 权重截尾，避免极端权重
+  ## 4. truncate weights to avoid extreme values
   
   if (!is.null(trim) && trim > 0) {
     
@@ -3936,7 +3936,7 @@ ipw_mew_cat <- function(exposure,
   }
   
   
-  ## 5. 附加简单诊断信息，不影响原函数使用
+  ## 5. attach simple diagnostics; does not affect use of the original function
   
   
   attr(weights, "diagnostics") <- list(
@@ -3950,7 +3950,7 @@ ipw_mew_cat <- function(exposure,
   return(weights)
 }
 
-## 连续暴露的 stabilized generalized propensity score weight########
+## stabilized generalized propensity score weight for a continuous exposure ########
 ##
 ## denominator: f(X | observed covariates)
 ## numerator  : f(X)
@@ -4066,8 +4066,8 @@ ipw_mew_con <- function(data,
 }
 
 
-## 连续暴露 GPS-IPW MSM#######
-## 每个中心单独估计权重和 MSM，然后 meta 合并
+## continuous exposure GPS-IPW MSM #######
+## estimate weights and the MSM separately in each center, then combine by meta-analysis
 
 
 IPW_function <- function(ALLdata,
@@ -4099,7 +4099,7 @@ IPW_function <- function(ALLdata,
     ]
     
     
-    ## 连续暴露：GPS stabilized weight
+    ## continuous exposure: GPS stabilized weight
     
     
     if (type == 1) {
@@ -4159,7 +4159,7 @@ IPW_function <- function(ALLdata,
     } else {
       
       
-      ## 二分类暴露：IPW
+      ## binary exposure: IPW
       
       
       if (length(cov_cen) == 0) {
@@ -4236,7 +4236,7 @@ IPW_function <- function(ALLdata,
 
 
 
-## 安全提取 final_result #######
+## safely extract final_result #######
 
 
 extract_final_result <- function(result_obj) {
@@ -4281,17 +4281,17 @@ extract_final_result <- function(result_obj) {
 
 
 
-## 主模拟函数：四种提出方法 + 回归调整 + GPS调整 + GPS-IPW MSM ##########
+## main simulation function: four proposed methods + regression adjustment + GPS adjustment + GPS-IPW MSM ##########
 
 ############################################################
-## 安全合并 data.frame
+## safely bind data.frames
 ##
-## 用途：
-##   不同方法返回的 center_result / iv_selection_info 列数可能不同。
-##   直接 rbind 会报错：
-##     Error in rbind(deparse.level, ...) : 变量的列数不对
+## purpose:
+##   center_result / iv_selection_info returned by different methods may have different numbers of columns.
+##   rbind directly would raise an error:
+##     Error in rbind(deparse.level, ...) : numbers of columns of arguments do not match
 ##
-## 本函数会自动补齐缺失列，再按统一列顺序合并。
+## this function fills missing columns automatically and then binds in a common column order.
 ############################################################
 
 safe_rbind_df <- function(x, y) {
@@ -4359,24 +4359,24 @@ safe_rbind_df <- function(x, y) {
 }
 
 ############################################################
-## 主模拟函数：
-## 四种提出方法 + 回归调整 + GPS adjustment + GPS-IPW MSM
+## main simulation function:
+## four proposed methods + regression adjustment + GPS adjustment + GPS-IPW MSM
 ##
-## 四种提出方法：
-##   1. IV_single_same : 单工具 + 不同中心同一工具
-##   2. IV_single_diff : 单工具 + 不同中心不同工具
-##   3. IV_multi_same  : 多工具 + 不同中心同一组工具
-##   4. IV_multi_diff  : 多工具 + 不同中心不同工具
+## four proposed methods:
+##   1. IV_single_same : single instrument + the same instrument across centers
+##   2. IV_single_diff : single instrument + different instruments across centers
+##   3. IV_multi_same  : multiple instruments + the same instrument set across centers
+##   4. IV_multi_diff  : multiple instruments + different instruments across centers
 ##
-## 参数 hetero_center_effect：
+## parameter hetero_center_effect:
 ##   hetero_center_effect = FALSE:
-##     原始同质性数据生成，观察中心和 RCT/do 共用 beta_CX、beta_CY
+##     original homogeneous data generation; observational centers and RCT/do share beta_CX and beta_CY
 ##
 ##   hetero_center_effect = TRUE:
-##     敏感性分析数据生成，观察中心使用中心特异性 beta_CX,c、beta_CY,c，
-##     RCT/do 仍使用原始 beta_CX、beta_CY
+##     sensitivity-analysis data generation; observational centers use center-specific beta_CX,c and beta_CY,c,
+##     RCT/do still uses the original beta_CX and beta_CY
 ##
-## 可实现：
+## provides:
 ##   1. CX only:
 ##      delta_CX_OB != 1, delta_CY_OB = 1
 ##
@@ -4413,7 +4413,7 @@ All_simulation <- function(N_sim,
                            selcetnum = 1,
                            trim = 0.01,
                            
-                           ## 敏感性分析参数
+                           ## sensitivity-analysis parameters
                            hetero_center_effect = FALSE,
                            tau_CX = 0,
                            tau_CY = 0,
@@ -4422,7 +4422,7 @@ All_simulation <- function(N_sim,
                            random_center_effect = TRUE) {
   
   ##########################################################
-  ## 内部小函数 1：安全合并 data.frame
+  ## internal helper 1: safely bind data.frames
   ##########################################################
   
   safe_rbind_df_local <- function(x, y) {
@@ -4492,7 +4492,7 @@ All_simulation <- function(N_sim,
   
   
   ##########################################################
-  ## 内部小函数 2：生成空变量列表
+  ## internal helper 2: create an empty variable list
   ##########################################################
   
   empty_covariate_list <- function(N_center) {
@@ -4508,7 +4508,7 @@ All_simulation <- function(N_sim,
   
   
   ##########################################################
-  ## 内部小函数 3：根据筛选变量列表计算“筛选阶段”的工具个数
+  ## internal helper 3: count instruments at the selection stage from the selected-variable list
   ##########################################################
   
   extract_selected_iv_count_info <- function(selected_covariates,
@@ -4549,7 +4549,7 @@ All_simulation <- function(N_sim,
   
   
   ##########################################################
-  ## 内部小函数 4：根据估计结果计算“实际使用”的工具个数
+  ## internal helper 4: count instruments actually used from the estimation results
   ##########################################################
   
   extract_used_iv_count_info <- function(result_obj) {
@@ -4566,8 +4566,8 @@ All_simulation <- function(N_sim,
     }
     
     ########################################################
-    ## 多工具结果：
-    ## center_result 中有 iv_count
+    ## multiple-instrument results:
+    ## center_result contains iv_count
     ########################################################
     
     if (!is.null(result_obj$center_result)) {
@@ -4598,8 +4598,8 @@ All_simulation <- function(N_sim,
     }
     
     ########################################################
-    ## 单工具结果：
-    ## 如果 center_result 中有有效中心，则每个有效中心使用 1 个工具
+    ## single-instrument results:
+    ## if center_result has valid centers, each valid center uses one instrument
     ########################################################
     
     if (!is.null(result_obj$center_result)) {
@@ -4637,8 +4637,8 @@ All_simulation <- function(N_sim,
   
   
   ##########################################################
-  ## 内部小函数 5：
-  ## 提取 final_result + 筛选工具个数 + 实际使用工具个数
+  ## internal helper 5:
+  ## extract final_result + selected instrument count + used instrument count
   ##########################################################
   
   extract_final_result_with_iv_count <- function(result_obj,
@@ -4669,7 +4669,7 @@ All_simulation <- function(N_sim,
   
   
   ##########################################################
-  ## 内部小函数 6：保存提出方法的工具信息和中心信息
+  ## internal helper 6: save instrument and center information of the proposed methods
   ##########################################################
   
   save_iv_diagnostics <- function(result_tmp,
@@ -4686,7 +4686,7 @@ All_simulation <- function(N_sim,
     }
     
     ########################################################
-    ## 1. 保存工具筛选总体信息
+    ## 1. save overall instrument selection information
     ########################################################
     
     if (!is.null(result_tmp$iv_selection_info)) {
@@ -4706,7 +4706,7 @@ All_simulation <- function(N_sim,
     }
     
     ########################################################
-    ## 2. 保存中心层面结果
+    ## 2. save center-level results
     ########################################################
     
     if (!is.null(result_tmp$center_result)) {
@@ -4736,7 +4736,7 @@ All_simulation <- function(N_sim,
   
   
   ##########################################################
-  ## 内部小函数 7：保存异质性敏感性分析信息
+  ## internal helper 7: save heterogeneity sensitivity-analysis information
   ##########################################################
   
   extract_hetero_info <- function(data_obj, sim) {
@@ -4793,7 +4793,7 @@ All_simulation <- function(N_sim,
   
   
   ##########################################################
-  ## 1. 真实效应
+  ## 1. true effect
   ##########################################################
   
   if (type == 1) {
@@ -4830,7 +4830,7 @@ All_simulation <- function(N_sim,
   
   
   ##########################################################
-  ## 2. 存储每次模拟结果
+  ## 2. store the results of each replicate
   ##########################################################
   
   all_result_IV_single_same <- NULL
@@ -4849,7 +4849,7 @@ All_simulation <- function(N_sim,
   
   
   ##########################################################
-  ## 3. 开始模拟
+  ## 3. start the simulation
   ##########################################################
   
   for (sim in 1:N_sim) {
@@ -4858,7 +4858,7 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.1 生成数据
+    ## 3.1 generate data
     ########################################################
     
     data <- try(
@@ -4924,7 +4924,7 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 如果数据生成失败
+    ## if data generation fails
     ########################################################
     
     if (inherits(data, "try-error")) {
@@ -5006,7 +5006,7 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.2 保存异质性信息
+    ## 3.2 save heterogeneity information
     ########################################################
     
     tmp_hetero <- extract_hetero_info(
@@ -5021,7 +5021,7 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.3 候选变量
+    ## 3.3 candidate variables
     ########################################################
     
     covariates_all <- setdiff(
@@ -5031,7 +5031,7 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.4 传统方法变量筛选
+    ## 3.4 variable selection for conventional methods
     ########################################################
     
     covariates_both <- try(
@@ -5066,8 +5066,8 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.5 提出方法一：
-    ##     单工具 + 不同中心同一工具
+    ## 3.5 proposed method 1:
+    ##     single instrument + the same instrument across centers
     ########################################################
     
     select_IV_single_same <- try(
@@ -5110,8 +5110,8 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.6 提出方法二：
-    ##     单工具 + 不同中心不同工具
+    ## 3.6 proposed method 2:
+    ##     single instrument + different instruments across centers
     ########################################################
     
     select_IV_single_diff <- try(
@@ -5154,8 +5154,8 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.7 提出方法三：
-    ##     多工具 + 不同中心同一组工具
+    ## 3.7 proposed method 3:
+    ##     multiple instruments + the same instrument set across centers
     ########################################################
     
     select_IV_multi_same <- try(
@@ -5198,8 +5198,8 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.8 提出方法四：
-    ##     多工具 + 不同中心不同工具
+    ## 3.8 proposed method 4:
+    ##     multiple instruments + different instruments across centers
     ########################################################
     
     select_IV_multi_diff <- try(
@@ -5242,7 +5242,7 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.9 保存四种提出方法的工具信息和中心信息
+    ## 3.9 save instrument and center information of the four proposed methods
     ########################################################
     
     method_result_list <- list(
@@ -5268,7 +5268,7 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.10 方法五：传统回归调整
+    ## 3.10 method 5: conventional regression adjustment
     ########################################################
     
     result_ADJq <- try(
@@ -5290,7 +5290,7 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.11 方法六：GPS mean adjustment
+    ## 3.11 method 6: GPS mean adjustment
     ########################################################
     
     result_GPSq <- try(
@@ -5312,7 +5312,7 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.12 方法七：GPS-IPW MSM
+    ## 3.12 method 7: GPS-IPW MSM
     ########################################################
     
     result_IPWq <- try(
@@ -5336,7 +5336,7 @@ All_simulation <- function(N_sim,
     
     
     ########################################################
-    ## 3.13 保存本次模拟状态
+    ## 3.13 save the state of this replicate
     ########################################################
     
     all_sim_status <- rbind(
@@ -5365,7 +5365,7 @@ All_simulation <- function(N_sim,
   
   
   ##########################################################
-  ## 4. 汇总模拟结果
+  ## 4. summarize simulation results
   ##########################################################
   
   end_result_IV_single_same <- resultt_FUn(
@@ -5405,7 +5405,7 @@ All_simulation <- function(N_sim,
   
   
   ##########################################################
-  ## 5. 返回
+  ## 5. return
   ##########################################################
   
   end_resulttt <- list()
@@ -5447,7 +5447,7 @@ All_simulation <- function(N_sim,
   return(end_resulttt)
 }
 
-## 参数设置############
+## parameter settings ############
 
 m <- 30
 k <- 5
@@ -5485,12 +5485,12 @@ n_boot <- 1000
 selcetnum <- 1
 trim <- 0.01
 
-## 这里 para_sim 表示 tau_CX 和 tau_CY 同步增加
+## here para_sim increases tau_CX and tau_CY together
 
 para_sim <- seq(0,0.6,0.06)
 
 
-## 输出路径
+## output path
 
 out_dir <- "results"
 dir.create(path.expand(out_dir), recursive = TRUE, showWarnings = FALSE)
@@ -5499,7 +5499,7 @@ all_sim_result_all <- NULL
 
 
 ############################################################
-## 开始循环
+## start the loop
 ############################################################
 
 for (j in seq_along(para_sim)) {
